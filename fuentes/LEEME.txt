@@ -1,0 +1,10 @@
+Fuentes del poll of polls 29N
+
+engine.js   Motor: agregación de encuestas, efecto casa, reparto provincial, D'Hondt, simulación y voto necesario.
+ui.js       Interfaz (pestañas, gráficos, tabla editable).
+body.html, extra.css, orig.css, map.js   Estructura, estilos y mapa de provincias.
+data.js     Datos incrustados (encuestas publicadas, microdatos procesados, resultados 2023 por provincia).
+build.py    Une todo y genera poll_of_polls_29N.html (python3 build.py). Para publicarlo, envuélvelo en un HTML completo (doctype, head y body) y llámalo index.html.
+build_data.py   Genera data.js desde data.json y micro.json (tabla de encuestas publicadas editable en el propio script).
+prep_micro.py   Procesa los microdatos (CIS 3577, 40dB, CEO 1169): variantes A/B/C, transiciones por recuerdo de voto y factores regionales. Lee los ficheros de microdatos originales y escribe micro.json; las rutas apuntan al espacio de trabajo de la sesión y hay que ajustarlas.
+micro.json  Resultado del preprocesado de microdatos.

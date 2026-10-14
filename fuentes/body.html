@@ -1,0 +1,134 @@
+<div class="wrap">
+  <header>
+    <div class="kick"><span>Elecciones generales · 29 de noviembre de 2026</span><span class="pill" id="pill">Poll of polls</span></div>
+    <h1 id="headline">Calculando la media de encuestas</h1>
+    <p class="sub" id="sub"></p>
+  </header>
+
+  <div class="ctrl" role="group" aria-label="Controles del modelo">
+    <label class="fld" for="half"><span class="lbl">Vida media de una encuesta</span><span class="rg"><input id="half" type="range" min="4" max="30" step="1"><output id="halfv" class="big" for="half"></output></span></label>
+    <label class="fld" for="variant"><span class="lbl">Microdatos</span><select id="variant"><option value="B">Reponderado por recuerdo de voto</option><option value="C">Reponderado + indecisos por recuerdo</option><option value="A">Bruto, como sale de la encuesta</option></select></label>
+    <label class="fld" for="regInt"><span class="lbl">Ajuste regional</span><span class="rg"><input id="regInt" type="range" min="0" max="100" step="5"><output id="regv" class="big" for="regInt"></output></span></label>
+    <fieldset class="fld seg" aria-label="Candidatura de Sumar y Podemos"><legend class="lbl">Sumar y Podemos</legend>
+      <span><input type="radio" name="unity" id="u0" value="0"><label for="u0">Por separado</label><input type="radio" name="unity" id="u1" value="1"><label for="u1">Unitaria</label></span></fieldset>
+    <label class="fld" for="nsim"><span class="lbl">Simulaciones</span><select id="nsim"><option value="500">500</option><option value="1000">1.000</option><option value="3000">3.000</option></select></label>
+  </div>
+
+  <nav class="tabs" role="tablist" aria-label="Secciones">
+    <button type="button" role="tab" id="tab-resumen" aria-controls="p-resumen" aria-selected="true">Resumen</button>
+    <button type="button" role="tab" id="tab-provincias" aria-controls="p-provincias" aria-selected="false" tabindex="-1">Provincias</button>
+    <button type="button" role="tab" id="tab-partidos" aria-controls="p-partidos" aria-selected="false" tabindex="-1">Partidos</button>
+    <button type="button" role="tab" id="tab-encuestas" aria-controls="p-encuestas" aria-selected="false" tabindex="-1">Encuestas y microdatos</button>
+  </nav>
+
+  <div class="panel" id="p-resumen" role="tabpanel" aria-labelledby="tab-resumen">
+  <div class="cols">
+    <section class="card">
+      <h2>Voto estimado</h2>
+      <p class="note">% sobre voto válido. El margen (±) cubre 9 de cada 10 simulaciones e incluye el error sistemático de las encuestas.</p>
+      <div class="rows" id="votes"></div>
+      <div class="legend"><span class="lg1">Resultado de 2023</span><span class="lg2">Rango entre encuestas</span><span class="lg3">Media estimada</span></div>
+    </section>
+    <section class="card">
+      <h2>Qué dice cada encuesta y cómo se ha movido la media</h2>
+      <p class="note">Cada punto es una encuesta (cuadrado si hay microdatos); su tamaño sigue el peso en la media. La línea es la media móvil con ventana de una semana, y el marcador de la derecha, la estimación actual.</p>
+      <div class="chips" id="chips" role="group" aria-label="Partidos en el gráfico"></div>
+      <svg id="chart" viewBox="0 0 640 560" role="img" aria-label="Encuestas por fecha y media estimada por partido"></svg>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Escaños proyectados</h2>
+    <p class="note">Swing sobre los resultados de 2023 en cada una de las 52 circunscripciones, calibrado a la media nacional, con D'Hondt y umbral del 3 %. Los escaños son la media de las simulaciones.</p>
+    <div class="seatsgrid">
+      <div class="hemi"><svg id="hemi" viewBox="0 0 400 214" role="img" aria-label="Hemiciclo de escaños proyectados"></svg><div class="mid"><div class="n" id="hemin">350</div><div class="lbl">escaños · mayoría 176</div></div></div>
+      <table class="tbl" id="tbl"><thead><tr><th>Partido</th><th>Escaños</th><th>Rango 90%</th><th>vs 2023</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="gwrap">
+      <h3>Mayorías posibles</h3>
+      <p class="note">Suma de escaños de cada combinación. La línea marca la mayoría absoluta (176). Junto a cada una, el rango del 90 % y en qué parte de las simulaciones llega a 176.</p>
+      <div id="groups"></div>
+    </div>
+  </section>
+
+  </div>
+
+  <div class="panel" id="p-provincias" role="tabpanel" aria-labelledby="tab-provincias" hidden>
+  <div class="mapwrap provwrap">
+    <section class="card">
+      <h2>Elige una provincia</h2>
+      <p class="note">Color: partido con más escaños en el escenario central. Cuanto más pálida, más disputada. Ceuta y Melilla van como cuadrados y Canarias en su recuadro. Pulsa en el mapa o usa la lista.</p>
+      <label class="fld sel" for="provSel"><span class="lbl">Provincia (escaños)</span><select id="provSel"></select></label>
+      <div id="tiles"></div><div class="leg" id="mleg"></div>
+    </section>
+    <section class="card pd" id="pd"></section>
+  </div>
+  </div>
+
+  <div class="panel" id="p-partidos" role="tabpanel" aria-labelledby="tab-partidos" hidden>
+  <section class="card">
+    <h2>Elige un partido</h2>
+    <p class="note">El número junto al nombre es su media de escaños en las simulaciones.</p>
+    <div class="chips" id="pchips" role="group" aria-label="Partido"></div>
+    <div class="kpis" id="pk"></div>
+  </section>
+  <div class="mapwrap partywrap">
+    <section class="card">
+      <div class="rowhead"><div><h2 id="pmt">Dónde saca escaño</h2><p class="note" id="pmn"></p></div>
+        <fieldset class="fld seg" aria-label="Qué mostrar en el mapa"><legend class="lbl">Mapa</legend><span><input type="radio" name="pm" id="pm0" value="seats" checked><label for="pm0">Escaños</label><input type="radio" name="pm" id="pm1" value="need"><label for="pm1">Voto necesario</label></span></fieldset></div>
+      <div id="pmap"></div><div class="leg" id="pleg"></div>
+    </section>
+    <section class="card">
+      <div class="rowhead"><div><h2>Provincia por provincia</h2><p class="note">Voto necesario para el primer escaño con el resto de partidos escalados en proporción. Diferencia = voto estimado menos voto necesario, en puntos.</p></div>
+        <div class="sortb" id="psort" role="group" aria-label="Ordenar"><button type="button" class="chip" data-s="gap" aria-pressed="true">Más cerca</button><button type="button" class="chip" data-s="seats" aria-pressed="false">Escaños</button><button type="button" class="chip" data-s="name" aria-pressed="false">A-Z</button></div></div>
+      <div class="tw tall"><table class="pt mt" id="ptab"></table></div>
+      <p class="note" id="pnote" style="margin:10px 0 0"></p>
+    </section>
+  </div>
+  </div>
+
+  <div class="panel" id="p-encuestas" role="tabpanel" aria-labelledby="tab-encuestas" hidden>
+  <section class="card">
+    <div class="rowhead"><div><h2>Encuestas incluidas</h2><p class="note">Marca, quita o corrige cualquier dato. Los % de las filas con microdatos salen de recalcular la encuesta y no se editan a mano. Al cambiar algo, todo se recalcula.</p></div>
+      <div class="btns"><button type="button" class="gobtn" id="addp">Añadir encuesta</button><button type="button" class="ghost" id="reset">Restaurar datos</button></div></div>
+    <div class="tw"><table class="pt" id="pt"><thead><tr><th class="c">Usar</th><th>Encuesta</th><th>Fecha</th><th>Muestra</th><th>PP</th><th>PSOE</th><th>Vox</th><th>Sumar</th><th>Podemos</th><th>SALF</th><th title="Multiplica el peso de la encuesta">Calidad</th><th>Peso</th><th class="c"></th></tr></thead><tbody></tbody></table></div>
+    <p class="note" id="ptnote" style="margin:12px 0 0"></p>
+    <details class="adv"><summary>Efecto casa por encuestadora</summary>
+      <p class="note" id="hnote"></p>
+      <div class="tw"><table class="pt mt" id="hft"></table></div>
+    </details>
+    <details class="adv"><summary>Más ajustes del modelo</summary>
+      <div class="advgrid">
+        <label class="fld" for="sdSys"><span class="lbl">Error sistemático de las encuestas</span><span class="rg"><input id="sdSys" type="range" min="0.1" max="0.5" step="0.02"><output id="sdSysv" class="big" for="sdSys"></output></span></label>
+        <label class="fld" for="sdProv"><span class="lbl">Dispersión entre provincias</span><span class="rg"><input id="sdProv" type="range" min="0" max="0.12" step="0.01"><output id="sdProvv" class="big" for="sdProv"></output></span></label>
+        <label class="fld" for="lam"><span class="lbl">Peso de los microdatos en partidos regionales</span><span class="rg"><input id="lam" type="range" min="0" max="1" step="0.05"><output id="lamv" class="big" for="lam"></output></span></label>
+        <label class="fld" for="house"><span class="lbl">Corrección del efecto casa</span><span class="rg"><input id="house" type="range" min="0" max="1" step="0.1"><output id="housev" class="big" for="house"></output></span></label>
+        <label class="fld" for="bonus" id="bonusF"><span class="lbl">Efecto de la candidatura unitaria</span><span class="rg"><input id="bonus" type="range" min="1" max="1.3" step="0.01"><output id="bonusv" class="big" for="bonus"></output></span></label>
+      </div>
+      <p class="note">El error sistemático es la desviación típica del error de la media (en puntos, escalada con la raíz del % de cada partido). La dispersión entre provincias es el cambio relativo típico respecto al swing común. El efecto de la candidatura unitaria multiplica la suma Sumar + Podemos (en el flash de 40dB sale 1,09).</p>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>Qué aportan los microdatos</h2>
+    <p class="note">Las tres encuestas de la carpeta incluyen respuestas individuales. Con ellas se recalcula el voto de dos maneras y se mide cuánto cambia el electorado de 2023.</p>
+    <div class="tw"><table class="pt mt" id="mt"></table></div>
+    <div id="cat"></div>
+    <h3 class="sh">De dónde viene el voto de hoy</h3>
+    <p class="note">Entre quienes votaron a cada partido en 2023 y hoy declaran un voto (CIS 3577, reponderado). «Repite» es el porcentaje que mantiene su partido.</p>
+    <div class="tw"><table class="pt mt" id="rt"></table></div>
+    <details class="adv"><summary>Ajuste regional aplicado por comunidad</summary>
+      <p class="note">Factor sobre el swing común: por encima de 1, el partido va mejor en esa comunidad de lo que dice la media; por debajo, peor. Sale de CIS (y CEO en Cataluña) y se encoge hacia 1 según el tamaño de la muestra. Se aplica a todas las provincias de la comunidad.</p>
+      <div class="tw"><table class="pt mt" id="ft"></table></div>
+    </details>
+  </section>
+
+  </div>
+
+  <footer class="foot">
+    <div><b>Método.</b> La media combina las encuestas marcadas con un peso que crece con la raíz de su muestra efectiva, decae a la mitad cada vez que pasa la vida media elegida y se multiplica por la calidad asignada. Los porcentajes de Sumar, Podemos y SALF que no publica una encuesta se completan con el resto. Los partidos regionales mantienen su peso de 2023 y se mueven entre sí según los microdatos. Para cada provincia se parte del voto de 2023, se aplica el factor regional, Podemos hereda el perfil de Sumar y SALF el de Vox, y se ajusta todo a la media nacional. Las simulaciones añaden error sistemático de las encuestas, un cambio compartido por comunidad y ruido provincial. No es una predicción ni un resultado oficial.</div>
+    <div><b>Microdatos.</b> CIS 3577 (barómetro de septiembre, 4.042 entrevistas), 40dB flash de octubre (800) y CEO 1169 (2.000, solo Cataluña). El reponderado iguala el recuerdo de voto de 2023 al resultado real de cada comunidad, pondera por probabilidad de votar y calcula el voto entre quienes dicen un partido (o simpatía). Cuando CIS y 40dB tienen una versión publicada, la fila publicada queda sin marcar para no contar la misma encuesta dos veces.</div>
+    <div><b>Fuentes de los porcentajes publicados.</b> Tablas de encuestas de <a href="https://brujula29n.com/encuestas/" target="_blank" rel="noopener">Brújula 29N</a> y <a href="https://elecciones29noviembre.com/encuestas/" target="_blank" rel="noopener">elecciones29noviembre.com</a>, contrastadas con <a href="https://en.ara.cat/politics/what-do-the-polls-for-the-spanish-elections-of-november-29-say_1_5874100.html" target="_blank" rel="noopener">Ara</a> y <a href="https://www.esdiario.com/nacional/261009/199828/tres-encuestas-dan-mayoria-pp-vox-ivan-redondo-agarra-clavo-ardiendo-sanchez_amp.html" target="_blank" rel="noopener">ESdiario</a>. Algunas cifras difieren entre fuentes (se indica en la nota de cada fila) y las filas con datos poco claros tienen calidad 0,6. Conviene confirmarlas en la ficha técnica original. Resultados de 2023: Ministerio del Interior, por municipio.</div>
+  </footer>
+</div>
+<div class="tt" id="tt"></div>

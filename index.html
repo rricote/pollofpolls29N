@@ -278,6 +278,7 @@ small.gd,td.gd{color:var(--good)}small.bd,td.bd{color:var(--bad)}
 .prt{font-size:12.5px}
 .mapsvg text.bt{font:500 13px var(--f-body);text-anchor:start;dominant-baseline:auto;fill:var(--muted);stroke:none;paint-order:normal}
 .pd h3{font:700 22px var(--f-display);margin:0 0 2px}
+[hidden]{display:none!important}
 
 </style>
 </head>
@@ -377,11 +378,16 @@ small.gd,td.gd{color:var(--good)}small.bd,td.bd{color:var(--bad)}
       <div class="btns"><button type="button" class="gobtn" id="addp">Añadir encuesta</button><button type="button" class="ghost" id="reset">Restaurar datos</button></div></div>
     <div class="tw"><table class="pt" id="pt"><thead><tr><th class="c">Usar</th><th>Encuesta</th><th>Fecha</th><th>Muestra</th><th>PP</th><th>PSOE</th><th>Vox</th><th>Sumar</th><th>Podemos</th><th>SALF</th><th title="Multiplica el peso de la encuesta">Calidad</th><th>Peso</th><th class="c"></th></tr></thead><tbody></tbody></table></div>
     <p class="note" id="ptnote" style="margin:12px 0 0"></p>
+    <details class="adv"><summary>Efecto casa por encuestadora</summary>
+      <p class="note" id="hnote"></p>
+      <div class="tw"><table class="pt mt" id="hft"></table></div>
+    </details>
     <details class="adv"><summary>Más ajustes del modelo</summary>
       <div class="advgrid">
         <label class="fld" for="sdSys"><span class="lbl">Error sistemático de las encuestas</span><span class="rg"><input id="sdSys" type="range" min="0.1" max="0.5" step="0.02"><output id="sdSysv" class="big" for="sdSys"></output></span></label>
         <label class="fld" for="sdProv"><span class="lbl">Dispersión entre provincias</span><span class="rg"><input id="sdProv" type="range" min="0" max="0.12" step="0.01"><output id="sdProvv" class="big" for="sdProv"></output></span></label>
         <label class="fld" for="lam"><span class="lbl">Peso de los microdatos en partidos regionales</span><span class="rg"><input id="lam" type="range" min="0" max="1" step="0.05"><output id="lamv" class="big" for="lam"></output></span></label>
+        <label class="fld" for="house"><span class="lbl">Corrección del efecto casa</span><span class="rg"><input id="house" type="range" min="0" max="1" step="0.1"><output id="housev" class="big" for="house"></output></span></label>
         <label class="fld" for="bonus" id="bonusF"><span class="lbl">Efecto de la candidatura unitaria</span><span class="rg"><input id="bonus" type="range" min="1" max="1.3" step="0.01"><output id="bonusv" class="big" for="bonus"></output></span></label>
       </div>
       <p class="note">El error sistemático es la desviación típica del error de la media (en puntos, escalada con la raíz del % de cada partido). La dispersión entre provincias es el cambio relativo típico respecto al swing común. El efecto de la candidatura unitaria multiplica la suma Sumar + Podemos (en el flash de 40dB sale 1,09).</p>
@@ -453,6 +459,30 @@ function pollWeight(p, o) {
   return (+p.q || 0) * Math.sqrt(Math.min(pollNeff(p, o), 2500)) * Math.pow(0.5, age / o.half);
 }
 
+/* ---- efecto casa: desviación media de cada encuestadora respecto al consenso del resto, encogida (bayesiana) y centrada ---- */
+const houseKey = p => p.src === 'micro' ? null : String(p.name || '').split(/\s*[\/(]/)[0].normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase() || null;
+const HOUSE_TAU = 0.06;   // dispersión relativa a priori de los efectos casa (6 % del % de cada partido)
+function houseEffects(act, o) {
+  const pub = act.filter(r => r.hk), groups = {};
+  pub.forEach(r => (groups[r.hk] = groups[r.hk] || []).push(r));
+  const out = {}, names = Object.keys(groups);
+  if (names.length < 3) return out;
+  names.forEach(h => {
+    const mine = groups[h], oth = pub.filter(r => r.hk !== h), Wo = oth.reduce((a, r) => a + r.w, 0), Wm = mine.reduce((a, r) => a + r.w, 0);
+    const ne = mine.reduce((a, r) => a + pollNeff(r.p, o), 0), no = oth.reduce((a, r) => a + pollNeff(r.p, o), 0);
+    const he = {}, raw = {};
+    MAIN5.forEach(k => {
+      const i = KI[k], cons = oth.reduce((a, r) => a + r.w * r.vec[i], 0) / Wo, own = mine.reduce((a, r) => a + r.w * r.vec[i], 0) / Wm;
+      const d = own - cons, pq = cons * (1 - cons), nv = pq / ne + pq / no, tv = Math.pow(HOUSE_TAU * cons, 2);
+      raw[k] = d; he[k] = d * tv / (tv + nv);
+    });
+    out[h] = { name: mine[0].p.name.split(/\s*[\/(]/)[0].trim(), n: mine.length, W: Wm, he, raw };
+  });
+  // centrar: la media simple de los efectos entre encuestadoras es cero (cada casa cuenta igual; el sesgo medio del sector no se puede medir sin un resultado real)
+  MAIN5.forEach(k => { const m = names.reduce((a, h) => a + out[h].he[k], 0) / names.length; names.forEach(h => out[h].he[k] -= m) });
+  return out;
+}
+
 /* ---- agregación: media ponderada de encuestas ---- */
 function aggregate(polls, o) {
   const rows = [], b = D.nat2023;
@@ -462,10 +492,12 @@ function aggregate(polls, o) {
     rows.push(r);
     if (!p.include || p.regional) return;
     const v = pollVec(p, o); if (!v) return;
-    r.vec = v; r.w = pollWeight(p, o); r.ok = r.w > 0;
+    r.vec = v; r.w = pollWeight(p, o); r.ok = r.w > 0; r.hk = houseKey(p);
   });
   const act = rows.filter(r => r.ok);
   if (!act.length) return null;
+  const HE = o.house > 0 ? houseEffects(act, o) : {};
+  act.forEach(r => { r.raw = r.vec; r.he = null; const h = HE[r.hk]; if (h) { r.vec = r.vec.slice(); r.he = h.he; MAIN5.forEach(k => r.vec[KI[k]] -= o.house * h.he[k]) } });
   act.forEach(r => { W += r.w; MAIN5.forEach((k, i) => m5[i] += r.w * r.vec[KI[k]]); if (isFinite(r.vec[KI.SALF])) { sS += r.w * r.vec[KI.SALF]; sW += r.w } });
   for (let i = 0; i < 5; i++) m5[i] /= W;
   const salf = sW > 0 ? sS / sW : 0.017;
@@ -493,7 +525,7 @@ function aggregate(polls, o) {
   const rng = {}; ['PP', 'PSOE', 'VOX', 'SUMAR', 'PODEMOS'].forEach(k => { const xs = act.map(r => r.vec[KI[k]]); rng[k] = [Math.min(...xs), Math.max(...xs)] });
   const nEff = W * W / act.reduce((a, r) => a + r.w * r.w, 0);
   rows.forEach(r => r.share = r.ok ? r.w / W : 0);
-  return { T, rows, act, rng, nEff, salf, Rb, rho: Object.fromEntries(BLOCK.map((k, n) => [k, rho[n]])), W };
+  return { T, rows, act, rng, HE, nEff, salf, Rb, rho: Object.fromEntries(BLOCK.map((k, n) => [k, rho[n]])), W };
 }
 
 /* ---- reparto a provincias: swing proporcional sobre 2023 con ajuste regional y calibrado a los objetivos nacionales ---- */
@@ -591,7 +623,7 @@ function seedPolls() {
   ps.push({ id: 'ceo1169', name: 'CEO 1169 (solo Cataluña)', date: '2026-09-16', n: D.micro.ceo.n, v: {}, q: 1, include: false, src: 'micro', mk: 'ceo', regional: true, note: 'No entra en la media nacional: refuerza los factores de Cataluña' });
   return ps;
 }
-const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.28, sdProv: 0.05, lam: 0.35, blockShift: 0, ref: '2026-10-14' };
+const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.28, sdProv: 0.05, lam: 0.35, house: 1, blockShift: 0, ref: '2026-10-14' };
 
 /* ---- voto necesario para escaño (D'Hondt, resto de partidos escalados en proporción) ---- */
 const _out = new Int16Array(NPAR);
@@ -754,8 +786,16 @@ function renderTable() {
   const sorted = st.polls.slice().sort((a, b) => b.date.localeCompare(a.date));
   $('#pt tbody').innerHTML = sorted.map(pollRow).join('');
 }
+function houseTable() {
+  const { A } = st, o = st.o, HE = A.HE || {}, hs = Object.values(HE).sort((a, b) => b.W - a.W), cols = ['PP', 'PSOE', 'VOX', 'SUMAR', 'PODEMOS'];
+  const pts = x => { const t = nf(Math.abs(x) * 100, 1); return (Math.abs(x) * 100 < 0.05 ? '' : x > 0 ? '+' : '−') + t };
+  $('#hnote').textContent = hs.length ? `Cuánto se desvía cada encuestadora de la media del resto, en puntos, encogido hacia cero según cuántas entregas y qué muestra tiene (con pocas encuestas el dato es sobre todo ruido) y centrado para que la suma entre encuestadoras sea cero (el sesgo común de todo el sector no se puede medir sin un resultado real). Se resta de sus datos antes de promediar${o.house < 1 ? ` con intensidad ${nf(o.house * 100, 0)} %` : ''}. Solo usa las encuestas publicadas; no mide el cambio de opinión en el tiempo, así que una casa que solo publicó hace semanas puede parecer más sesgada de lo que es.` : 'Hacen falta al menos tres encuestadoras activas para estimar efectos casa.';
+  let h = `<thead><tr><th>Encuestadora</th><th>Encuestas</th>${cols.map(k => `<th>${esc(PNAME[k])}</th>`).join('')}</tr></thead><tbody>`;
+  hs.forEach(x => { h += `<tr><td>${esc(x.name)}</td><td class="num">${x.n}</td>${cols.map(k => { const v = x.he[k]; return `<td class="num" title="Desviación bruta ${pts(x.raw[k])}">${pts(v)}</td>` }).join('')}</tr>` });
+  $('#hft').innerHTML = hs.length ? h + '</tbody>' : '';
+}
 function weights() {
-  const { A } = st;
+  const { A } = st; houseTable();
   A.rows.forEach(r => { const el = document.getElementById('w-' + r.p.id); if (el) el.textContent = r.ok ? nf(r.share * 100, 1) + '%' : '–'; const tr = el && el.closest('tr'); if (tr) { tr.classList.toggle('off', !r.ok); const w = tr.querySelector('.warn'); if (w) w.hidden = !!pollVec(r.p, st.o) } });
   $('#ptnote').textContent = `Peso = calidad × raíz de la muestra efectiva × 0,5^(días desde el trabajo de campo / ${st.o.half}). El CEO solo alimenta los factores de Cataluña.`;
 }
@@ -783,7 +823,7 @@ function sync() {
   $('#regInt').value = Math.round(o.regInt * 100); $('#regv').textContent = Math.round(o.regInt * 100) + '%';
   $('#u0').checked = !o.unity; $('#u1').checked = !!o.unity; $('#nsim').value = String(o.nsim);
   $('#sdSys').value = o.sdSys; $('#sdSysv').textContent = nf(o.sdSys, 2); $('#sdProv').value = o.sdProv; $('#sdProvv').textContent = nf(o.sdProv * 100, 0) + '%';
-  $('#lam').value = o.lam; $('#lamv').textContent = nf(o.lam, 2); $('#bonus').value = o.bonus; $('#bonusv').textContent = '×' + nf(o.bonus, 2); $('#bonusF').hidden = !o.unity;
+  $('#house').value = o.house; $('#housev').textContent = o.house >= 1 ? 'Total' : o.house <= 0 ? 'Apagada' : nf(o.house * 100, 0) + ' %'; $('#lam').value = o.lam; $('#lamv').textContent = nf(o.lam, 2); $('#bonus').value = o.bonus; $('#bonusv').textContent = '×' + nf(o.bonus, 2); $('#bonusF').hidden = !o.unity;
 }
 function bind() {
   const o = st.o;
@@ -794,6 +834,7 @@ function bind() {
   $('#nsim').onchange = e => { o.nsim = +e.target.value; schedule(30) };
   $('#sdSys').oninput = e => { o.sdSys = +e.target.value; sync(); schedule() };
   $('#sdProv').oninput = e => { o.sdProv = +e.target.value; sync(); schedule() };
+  $('#house').oninput = e => { o.house = +e.target.value; sync(); schedule() };
   $('#lam').oninput = e => { o.lam = +e.target.value; sync(); schedule() };
   $('#bonus').oninput = e => { o.bonus = +e.target.value; sync(); schedule() };
 }
@@ -813,7 +854,7 @@ function drawMap(target, cfg) {
   $(target).innerHTML = `<svg class="mapsvg" viewBox="0 0 ${MAP.w} ${MAP.h}" role="group" aria-label="${esc(cfg.group)}">${h}${selp}${tx}${sqs}<rect class="bx" x="${b[0]}" y="${b[1]}" width="${b[2] - b[0]}" height="${b[3] - b[1]}" rx="6"/><text class="bt" x="${b[0] + 8}" y="${b[1] + 16}">Canarias</text></svg>`;
   $(target).querySelectorAll('[data-id]').forEach(el => { const go = () => cfg.pick(el.dataset.id); el.onclick = go; el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go() } } });
 }
-const pts = x => (x >= 0 ? '+' : '−') + nf(Math.abs(x) * 100, 1);
+const pts = x => { const t = nf(Math.abs(x) * 100, 1); return (Math.abs(x) * 100 < 0.05 ? '' : x > 0 ? '+' : '−') + t };
 const mark = (k, w) => `<span class="sw" style="background:var(--c-${k})"></span>`;
 function present(j, k) { return D.prov[j].sh[k] > 0 || ((k === KI.PODEMOS || k === KI.SALF) && st.A.T[k] > 0) }
 const NC = {};
