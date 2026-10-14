@@ -270,16 +270,16 @@ function partyPage() {
   const mode = st.pmode, maxS = Math.max(1, ...rows.map(x => x.r.c));
   const gap = x => x.r.ok ? x.r.share - x.r.n1 : -1;
   const fill = (id, j) => { const r = need(j, k); if (!r.ok) return ['var(--track)', 0.35];
-    if (mode === 'seats') return r.c > 0 ? [`var(--c-${key})`, 0.32 + 0.68 * Math.sqrt(r.c / maxS)] : ['var(--track)', 1];
+    if (mode === 'seats') return r.c > 0 ? [`var(--c-${key})`, 0.32 + 0.68 * Math.sqrt(r.c / maxS)] : r.hs.p1 >= 0.25 ? [`var(--c-${key})`, 0.12 + 0.2 * r.hs.p1] : ['var(--track)', 1];
     const g = r.share - r.n1; return g >= 0 ? [`var(--c-${key})`, 0.92] : [`var(--c-${key})`, Math.max(0.08, 0.55 + g / 0.1 * 0.5)] };
-  const label = (id, j) => { const r = need(j, k); if (!r.ok) return ''; if (mode === 'seats') return r.c > 0 ? String(r.c) : ''; return nf(r.n1 * 100, r.n1 * 100 >= 10 ? 0 : 1) };
+  const label = (id, j) => { const r = need(j, k); if (!r.ok) return ''; if (mode === 'seats') return r.c > 0 ? String(r.c) : r.hs.p1 >= 0.25 ? Math.round(r.hs.p1 * 100) + '%' : ''; return nf(r.n1 * 100, r.n1 * 100 >= 10 ? 0 : 1) };
   const dark = (id, j) => { const r = need(j, k); if (!r.ok) return true; if (mode === 'seats') return r.c === 0; return (r.share - r.n1) < -0.03 };
   drawMap('#pmap', { sel: null, group: `Mapa de escaños de ${PN[k].name} por provincia`, cls: mode === 'seats' ? 'lg' : 'sm', fill, label, dark,
     aria: (id, j) => `${D.prov[j].name}: ${need(j, k).c} escaños`, title: (id, j) => { const r = need(j, k); return r.ok ? `${D.prov[j].name} · ${r.c} escaños · voto ${fmt(r.share)} · necesita ${fmt(r.n1)} para el primero` : `${D.prov[j].name} · no se presenta` },
     pick: id => { st.sel = id; setTab('provincias') } });
   $('#pmt').textContent = mode === 'seats' ? `Dónde saca escaño ${PN[k].name}` : `Voto que necesita ${PN[k].name} para su primer escaño`;
-  $('#pmn').textContent = mode === 'seats' ? `El número es el escaño que consigue en el escenario central, ${seatsC} en total (la media de simulaciones da ${si[k]}). Más oscuro, más escaños. Pulsa una provincia para ver su detalle.` : 'El número es el % de voto provincial que haría falta para su primer escaño. Sólido: ya lo supera. Más claro: le falta voto, y cuanto más pálido, más lejos está.';
-  $('#pleg').innerHTML = mode === 'seats' ? `<span><i style="background:var(--c-${key})"></i>Con escaño</span><span><i style="background:var(--track)"></i>Sin escaño o no se presenta</span>` : `<span><i style="background:var(--c-${key})"></i>Ya supera el mínimo</span><span><i style="background:var(--c-${key});opacity:.25"></i>Por debajo</span><span><i style="background:var(--track)"></i>No se presenta</span>`;
+  $('#pmn').textContent = mode === 'seats' ? `El número es el escaño que consigue en el escenario central, ${seatsC} en total (la media de simulaciones da ${si[k]}). Más oscuro, más escaños. Un % en tono claro es una provincia sin escaño en el escenario central pero con esa probabilidad de sacarlo (por eso la media de simulaciones puede superar al escenario central). Pulsa una provincia para ver su detalle.` : 'El número es el % de voto provincial que haría falta para su primer escaño. Sólido: ya lo supera. Más claro: le falta voto, y cuanto más pálido, más lejos está.';
+  $('#pleg').innerHTML = mode === 'seats' ? `<span><i style="background:var(--c-${key})"></i>Con escaño</span><span><i style="background:var(--c-${key});opacity:.25"></i>Sin escaño central, con probabilidad ≥ 25 %</span><span><i style="background:var(--track)"></i>Sin escaño o no se presenta</span>` : `<span><i style="background:var(--c-${key})"></i>Ya supera el mínimo</span><span><i style="background:var(--c-${key});opacity:.25"></i>Por debajo</span><span><i style="background:var(--track)"></i>No se presenta</span>`;
   // tabla
   const ord = st.psort, pr = rows.filter(x => x.r.ok);
   pr.sort((a, b) => ord === 'seats' ? (b.r.c - a.r.c || gap(b) - gap(a)) : ord === 'name' ? a.p.name.localeCompare(b.p.name, 'es') : gap(b) - gap(a));
