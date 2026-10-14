@@ -704,12 +704,13 @@ function chips() {
   $('#chips').innerHTML = PN.filter(p => !['OTROS'].includes(p.k) && st.A.T[KI[p.k]] > 0).map(p => `<button type="button" class="chip" data-k="${p.k}" aria-pressed="${st.series.has(p.k)}" style="--c:var(--c-${p.k})"><i></i>${esc(p.name)}</button>`).join('');
   $('#chips').querySelectorAll('.chip').forEach(c => c.onclick = () => { const k = c.dataset.k; if (st.series.has(k)) { if (st.series.size > 1) st.series.delete(k) } else st.series.add(k); chips(); chart() });
 }
+function pval(r, k, o) { const v = r.vec; if (o.unity && k === 'SUMAR') return Math.min(0.3, (v[KI.SUMAR] + v[KI.PODEMOS]) * o.bonus); return v[KI[k]] }
 function chart() {
   const svg = $('#chart'), { A, S } = st, o = st.o, keys = [...st.series].filter(k => A.T[KI[k]] > 0);
   const narrow = svg.parentElement.clientWidth < 560, W = narrow ? 480 : 640, H = narrow ? 400 : 560, m = { l: 40, r: narrow ? 14 : 150, t: 14, b: 30 };
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   const act = A.act, ds = act.map(r => dayNum(r.p.date)), d0 = Math.min(...ds, dayNum(o.ref) - 20) - 1, d1 = dayNum(o.ref) + 1;
-  const vals = []; keys.forEach(k => { act.forEach(r => vals.push(r.vec[KI[k]])); vals.push(S.share[KI[k]].lo, S.share[KI[k]].hi) });
+  const vals = []; keys.forEach(k => { act.forEach(r => vals.push(pval(r, k, o))); vals.push(S.share[KI[k]].lo, S.share[KI[k]].hi) });
   let y0 = Math.floor((Math.min(...vals) - 0.004) * 50) / 50, y1 = Math.ceil((Math.max(...vals) + 0.006) * 50) / 50;
   const step = (y1 - y0) > 0.3 ? 0.1 : (y1 - y0) > 0.12 ? 0.05 : 0.02; y0 = Math.max(0, Math.floor(y0 / step) * step); y1 = Math.ceil(y1 / step) * step;
   const X = d => m.l + (d - d0) / (d1 - d0) * (W - m.l - m.r), Y = v => H - m.b - (v - y0) / (y1 - y0) * (H - m.t - m.b);
@@ -720,10 +721,10 @@ function chart() {
   const labs = [];
   keys.forEach(k => {
     const i = KI[k], col = `var(--c-${k})`, tr = [];
-    for (let d = d0; d <= d1 + 0.01; d += 0.5) { let sw = 0, sv = 0; act.forEach(r => { const z = (dayNum(r.p.date) - d) / 6, w = r.p.q * Math.sqrt(Math.min(pollNeff(r.p, o), 2500)) * Math.exp(-z * z / 2); sw += w; sv += w * r.vec[i] }); if (sw > 0.6) tr.push(`${X(d).toFixed(1)},${Y(sv / sw).toFixed(1)}`) }
+    for (let d = d0; d <= d1 + 0.01; d += 0.5) { let sw = 0, sv = 0; act.forEach(r => { const z = (dayNum(r.p.date) - d) / 6, w = r.p.q * Math.sqrt(Math.min(pollNeff(r.p, o), 2500)) * Math.exp(-z * z / 2); sw += w; sv += w * pval(r, k, o) }); if (sw > 0.6) tr.push(`${X(d).toFixed(1)},${Y(sv / sw).toFixed(1)}`) }
     if (tr.length > 1) s += `<polyline points="${tr.join(' ')}" fill="none" stroke="${col}" stroke-width="2.4" stroke-linejoin="round" opacity=".9"/>`;
-    act.forEach(r => { const rad = 2.6 + 5 * Math.sqrt(r.share * act.length) / 2, x = X(dayNum(r.p.date)), y = Y(r.vec[i]);
-      const tip = `<title>${esc(r.p.name)} · ${dshort(r.p.date)}: ${fmt(r.vec[i])}</title>`;
+    act.forEach(r => { const rad = 2.6 + 5 * Math.sqrt(r.share * act.length) / 2, x = X(dayNum(r.p.date)), y = Y(pval(r, k, o));
+      const tip = `<title>${esc(r.p.name)} · ${dshort(r.p.date)}: ${fmt(pval(r, k, o))}</title>`;
       s += r.p.src === 'micro' ? `<rect x="${x - rad}" y="${y - rad}" width="${rad * 2}" height="${rad * 2}" fill="${col}" fill-opacity=".35" stroke="${col}" stroke-width="1.5">${tip}</rect>` : `<circle cx="${x}" cy="${y}" r="${rad}" fill="${col}" fill-opacity=".3" stroke="${col}" stroke-width="1.3">${tip}</circle>` });
     const lo = S.share[i].lo, hi = S.share[i].hi, x = X(d1);
     s += `<line x1="${x}" x2="${x}" y1="${Y(hi)}" y2="${Y(lo)}" stroke="${col}" stroke-width="3" opacity=".45"/><circle cx="${x}" cy="${Y(A.T[i])}" r="4.2" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>`;
