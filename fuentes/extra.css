@@ -132,3 +132,4 @@ small.gd,td.gd{color:var(--good)}small.bd,td.bd{color:var(--bad)}
 .mapsvg text.bt{font:500 13px var(--f-body);text-anchor:start;dominant-baseline:auto;fill:var(--muted);stroke:none;paint-order:normal}
 .pd h3{font:700 22px var(--f-display);margin:0 0 2px}
 [hidden]{display:none!important}
+.thrb{cursor:pointer}.thrb:focus{outline:none}.thrb:focus-visible rect:first-of-type,.thrb:hover rect:first-of-type{stroke:var(--ink);stroke-width:1.5}
