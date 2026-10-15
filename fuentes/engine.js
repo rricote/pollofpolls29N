@@ -220,13 +220,13 @@ function histStats(h, N) {
 }
 
 /* ---- barrera efectiva: voto mínimo que necesitaría un partido nuevo para sacar un escaño en la provincia (los demás se reducen en proporción) ---- */
-function effThreshold(row, seats) {
+function effThreshold(row, seats, noLegal) {
   const win = x => {
     const f = (1 - x), q = [];
     for (let k = 0; k < NPAR; k++) { const s = row[k] * f; if (s >= 0.03) for (let d = 1; d <= seats; d++) q.push(s / d) }
     q.sort((a, b) => b - a);
     const last = q.length >= seats ? q[seats - 1] : 0;
-    return x >= 0.03 && x > last;
+    return (noLegal || x >= 0.03) && x > last;
   };
   let lo = 0.0, hi = 1; if (!win(0.999)) return null;
   for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (win(mid)) hi = mid; else lo = mid }

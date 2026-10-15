@@ -216,7 +216,7 @@ function need(j, k) {
 
 function thrChart() {
   const { S } = st, svg = $('#thr'); if (!svg) return;
-  const L = D.prov.map((p, j) => ({ p, j, e: effThreshold(S.centShare[j], p.seats) })).filter(x => x.e !== null && x.p.id !== '51' && x.p.id !== '52').map(x => ({ ...x, v: Math.max(0.03, x.e) }));
+  const L = D.prov.map((p, j) => ({ p, j, e: effThreshold(S.centShare[j], p.seats, true) })).filter(x => x.e !== null && x.p.id !== '51' && x.p.id !== '52').map(x => ({ ...x, v: x.e }));
   L.sort((a, b) => a.v - b.v || b.p.seats - a.p.seats);
   const SHORT = { 'Santa Cruz de Tenerife': 'S.C. Tenerife', 'Castelló/Castellón': 'Castelló', 'Alacant/Alicante': 'Alicante', 'València/Valencia': 'València', 'Araba/Álava': 'Araba', 'Illes Balears': 'Baleares' }, nm = p => SHORT[p.name] || p.name;
   const n = L.length, W = Math.max(900, n * 26 + 66), H = 410, m = { l: 56, r: 10, t: 44, b: 96 };
@@ -230,7 +230,7 @@ function thrChart() {
     s += `<g data-id="${x.p.id}" class="thrb" tabindex="0" role="button" aria-label="${esc(x.p.name)}: ${x.p.seats} escaños, barrera efectiva ${fmt(x.v)}"><title>${esc(x.p.name)} · ${x.p.seats} escaños · barrera efectiva ${fmt(x.v)}${atFloor ? ' (manda el 3 % legal)' : ''}</title>
       <rect x="${cx - bw * .36}" y="${Y(x.v)}" width="${bw * .72}" height="${h}" rx="2" fill="${atFloor ? 'var(--faint)' : 'var(--focus)'}" fill-opacity="${sel ? 1 : .72}"${sel ? ' stroke="var(--ink)" stroke-width="1.5"' : ''}/>
       <rect x="${cx - bw / 2}" y="${m.t - 16}" width="${bw}" height="${H - m.t - m.b + 16 + 90}" fill="transparent"/>
-      <text x="${cx}" y="${m.t - 20}" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--ink)">${x.p.seats}</text><text x="${cx}" y="${Y(x.v) - 5}" text-anchor="middle" font-size="10" fill="var(--ink)">${nf(x.v * 100, 1)}</text>
+      <text x="${cx}" y="${m.t - 20}" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--ink)">${x.p.seats}</text><text x="${cx}" y="${Y(x.v) - 5}" text-anchor="middle" font-size="10" fill="var(--ink)" stroke="var(--surface)" stroke-width="3" paint-order="stroke" pointer-events="none">${nf(x.v * 100, 1)}</text>
       <text transform="translate(${cx + 4},${H - m.b + 10}) rotate(-60)" text-anchor="end" font-size="11" fill="var(--muted)">${esc(nm(x.p))}</text></g>`;
   });
   s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(0.03)}" y2="${Y(0.03)}" stroke="var(--ink)" stroke-width="1.4" stroke-dasharray="2 4" stroke-linecap="round" pointer-events="none"/><text x="${W - m.r}" y="${Y(0.03) - 5}" text-anchor="end" font-size="10.5" fill="var(--ink)" pointer-events="none">Umbral legal 3 %</text><text x="${m.l - 7}" y="${m.t - 22}" text-anchor="end" font-size="10.5" fill="var(--muted)">Escaños</text>`;
