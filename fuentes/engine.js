@@ -4,7 +4,15 @@ KEYS.forEach((k, i) => KI[k] = i);
 const NPAR = 16;                       // partidos que compiten por escaño (0..15); 16 = OTROS, 17 = BLANCO
 const MAIN5 = ['PP', 'PSOE', 'VOX', 'SUMAR', 'PODEMOS'];
 let UNITY_R = 0;
-const FACK = ['SUMAR', 'PODEMOS', 'COMPROMIS', 'UPC', 'ADELANTE'];   // Frente Amplio + confluencias
+/* parte del Frente Amplio restante que vive en comunidades donde Podemos ya va dentro de otras listas (Cataluña, C. Valenciana, Canarias): ahí la unidad no aplica y no hay bonus */
+let _CS = null;
+function coalShare() {
+  if (_CS !== null) return _CS;
+  const C = D.cfg; let a = 0, b = 0;
+  D.prov.forEach(p => { const w = p.valid * p.sh[KI.SUMAR] * (p.ccaa === '05' ? 0 : p.ccaa === '10' ? 1 - C.kc : 1); b += w; if (C.regPodemosCoal.includes(p.ccaa)) a += w });
+  return _CS = b > 0 ? a / b : 0;
+}
+const FACK = ['SUMAR', 'COMPROMIS', 'UPC', 'ADELANTE'];   // Frente Amplio + confluencias
 const BLOCK = ['ERC', 'JUNTS', 'BILDU', 'PNV', 'BNG', 'CC', 'UPN'];
 const NATIVE = KEYS.map((k, i) => i);
 const MS = 864e5;
@@ -105,11 +113,12 @@ function aggregate(polls, o) {
   T[KI.COMPROMIS] = fa * C.wFA.cv + pod * C.fPod.cv; T[KI.UPC] = fa * C.wFA.can + pod * C.fPod.can;
   T[KI.ERC] += pod * C.fPod.cat; T[KI.SUMAR] = fa * (1 - tr); T[KI.PODEMOS] = pod * (1 - C.fPod.cat - C.fPod.cv - C.fPod.can);
   const tf = { podCat: pod * C.fPod.cat, podCV: pod * C.fPod.cv, podCan: pod * C.fPod.can, faCV: fa * C.wFA.cv, faCan: fa * C.wFA.can };
+  const Tsep = T.slice(); { const ts = Tsep.reduce((a, x) => a + x, 0); for (let i = 0; i < NK; i++) Tsep[i] /= ts }
   UNITY_R = T[KI.SUMAR] > 0 ? T[KI.PODEMOS] / T[KI.SUMAR] : 0;   // peso del Podemos propio frente a Frente Amplio, para repartir la lista unitaria en provincias
   if (o.unity) {
     // las listas donde Podemos/ex-Sumar ya van integrados (ERC, Compromís, UPC) no se ven afectadas por la unidad
     const FIX = [KI.ERC, KI.COMPROMIS, KI.UPC], fx = FIX.reduce((a, i) => a + T[i], 0);
-    const S = T[KI.SUMAR] + T[KI.PODEMOS], nS = Math.min(0.3, S * o.bonus), f = (1 - nS - fx) / (1 - S - fx);
+    const S = T[KI.SUMAR] + T[KI.PODEMOS], Sc = T[KI.SUMAR] * coalShare(), nS = Math.min(0.3, Sc + (S - Sc) * o.bonus), f = (1 - nS - fx) / (1 - S - fx);
     for (let i = 0; i < NK; i++) if (!FIX.includes(i)) T[i] *= f; T[KI.SUMAR] = nS; T[KI.PODEMOS] = 0;
   }
   const tot = T.reduce((a, x) => a + x, 0); for (let i = 0; i < NK; i++) T[i] /= tot;
@@ -117,7 +126,7 @@ function aggregate(polls, o) {
   const rng = {}; ['PP', 'PSOE', 'VOX', 'SUMAR', 'PODEMOS'].forEach(k => { const xs = act.map(r => r.vec[KI[k]]); rng[k] = [Math.min(...xs), Math.max(...xs)] });
   const nEff = W * W / act.reduce((a, r) => a + r.w * r.w, 0);
   rows.forEach(r => r.share = r.ok ? r.w / W : 0);
-  return { T, rows, act, rng, HE, tf, adel, nEff, salf, Rb, rho: Object.fromEntries(BLOCK.map((k, n) => [k, rho[n]])), W };
+  return { T, Tsep, rows, act, rng, HE, tf, adel, nEff, salf, Rb, rho: Object.fromEntries(BLOCK.map((k, n) => [k, rho[n]])), W };
 }
 
 /* ---- reparto a provincias: swing proporcional sobre 2023 con ajuste regional y calibrado a los objetivos nacionales ---- */
@@ -128,13 +137,16 @@ function facFor(ccaa, k, o) {
   if (!e) return { m: 1, sd: 0.06 };
   return { m: Math.pow(e.f, o.regInt), sd: e.sd };
 }
-function baseMatrix(o) {
+function baseMatrix(o, Tsep) {
+  if (o.unity && Tsep) {      // lista unitaria: se parte del reparto provincial por separado (ya calibrado) y solo se funden FA y Podemos donde Podemos concurre aparte, con el bonus allí
+    const so = baseMatrix({ ...o, unity: false }); rake(so.S0, Tsep, 16);
+    D.prov.forEach((p, j) => { if (!D.cfg.regPodemosCoal.includes(p.ccaa)) { so.S0[j][KI.SUMAR] = (so.S0[j][KI.SUMAR] + so.S0[j][KI.PODEMOS]) * o.bonus; so.S0[j][KI.PODEMOS] = 0 } });
+    return so;
+  }
   const S0 = [], SD = [];
   D.prov.forEach(p => {
     const row = p.sh.slice(), sd = new Array(NK).fill(0.06), sum = p.sh[KI.SUMAR], C = D.cfg;
     row[KI.PODEMOS] = C.regPodemosCoal.includes(p.ccaa) ? 0 : sum; row[KI.SALF] = p.sh[KI.VOX];
-    // lista unitaria: solo se funden Frente Amplio y Podemos donde Podemos concurre aparte; en Cataluña, C. Valenciana y Canarias no cambia nada
-    if (o.unity && !C.regPodemosCoal.includes(p.ccaa)) { row[KI.SUMAR] = (row[KI.SUMAR] + row[KI.PODEMOS] * UNITY_R) * o.bonus; row[KI.PODEMOS] = 0 }
     if (p.ccaa === '10') { row[KI.COMPROMIS] = sum * C.kc; row[KI.SUMAR] = sum * (1 - C.kc) }
     if (p.ccaa === '05') { row[KI.UPC] = sum; row[KI.SUMAR] = 0 }
     if (p.ccaa === '01') row[KI.ADELANTE] = C.andAdelante;
@@ -167,8 +179,8 @@ function natShare(S) { const t = new Array(NK).fill(0); for (let j = 0; j < NJ; 
 /* ---- simulación ---- */
 const GRP = D.grupos;
 function pct(sorted, p) { const i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo) }
-function simulate(T, o) {
-  const { S0, SD } = baseMatrix(o);
+function simulate(T, o, Tsep) {
+  const { S0, SD } = baseMatrix(o, Tsep);
   const out = new Int16Array(NPAR);
   // escenario central
   const Sc = S0.map(r => r.slice()); rake(Sc, T, 16);
@@ -269,14 +281,14 @@ function effThreshold(row, seats, noLegal) {
 /* ---- valores de Frente Amplio y Podemos en el gráfico: misma conversión que la media (candidaturas regionales y escenario unitario) ---- */
 function chartMain(vec, o) {
   const c = D.cfg; let fa = vec[KI.SUMAR] * (1 - c.wFA.cv - c.wFA.can), po = vec[KI.PODEMOS] * (1 - c.fPod.cat - c.fPod.cv - c.fPod.can);
-  if (o.unity) { fa = Math.min(0.3, (fa + po) * o.bonus); po = 0 }
+  if (o.unity) { const sc = fa * coalShare(); fa = Math.min(0.3, sc + (fa + po - sc) * o.bonus); po = 0 }
   return { SUMAR: fa, PODEMOS: po };
 }
 
 /* ---- Frente Amplio + confluencias de una encuesta: FA + Podemos propio + Adelante (Compromís y UPC son trozos de FA/Podemos; el Podemos de ERC queda fuera) ---- */
 function facMain(vec, o, adel) {
-  const c = D.cfg; let s = vec[KI.SUMAR] + vec[KI.PODEMOS] * (1 - c.fPod.cat);
-  if (o.unity) s = Math.min(0.3, s * o.bonus);
+  let s = vec[KI.SUMAR];
+  if (o.unity) { const c = D.cfg, sc = s * coalShare(), po = vec[KI.PODEMOS] * (1 - c.fPod.cat - c.fPod.cv - c.fPod.can); s = Math.min(0.3, sc + (s + po - sc) * o.bonus) }
   const ad = isFinite(vec[KI.ADELANTE]) ? vec[KI.ADELANTE] : adel;
   return s + ad;
 }

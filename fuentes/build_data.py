@@ -20,6 +20,11 @@ prov = []
 for p in D['prov']:
     mp = M['prov'][p['id']]
     prov.append({'id': p['id'], 'name': p['name'], 'seats': p['seats'], 'ccaa': mp['ccaa'], 'valid': mp['valid'], 'sh': ex(mp['sh'])})
+# Adelante Andalucía concurrió en 2023 solo en Cádiz (9.064 votos, 1,42 %), por separado de Sumar; antes iba en 'otros'
+ADEL23 = 0.0142
+for p in prov:
+    if p['id'] == '11':
+        p['sh'][KEYS.index('ADELANTE')] = ADEL23; p['sh'][KEYS.index('OTROS')] -= ADEL23
 assert sum(p['seats'] for p in prov) == 350
 
 def micro(k):
@@ -69,10 +74,12 @@ grupos = [
  {'id': 'psoe_socios_sj', 'label': 'PSOE + Frente Amplio + socios sin Junts', 'parties': LEFT_SJ},
  {'id': 'psoe_sumar', 'label': 'PSOE + Frente Amplio', 'parties': ['PSOE', 'SUMAR']}, {'id': 'psoe', 'label': 'Solo PSOE', 'parties': ['PSOE']}]
 
+nat23 = exd(M['b_nat']); _v = sum(p['valid'] for p in prov); _c = next(p['valid'] for p in prov if p['id'] == '11')
+_x = ADEL23 * _c / _v; nat23[KEYS.index('ADELANTE')] += _x; nat23[KEYS.index('OTROS')] -= _x
 s23 = D['base']['seats']; seats2023 = s23[:13] + [0, 0, 0] + s23[13:]
 out = {
  'keys': KEYS, 'parties': parties, 'prov': prov, 'seats2023': seats2023,
- 'nat2023': exd(M['b_nat']), 'regn': REGN, 'fac': fac, 'tau': M['tau'], 'nreg': M['n_reg'],
+ 'nat2023': nat23, 'regn': REGN, 'fac': fac, 'tau': M['tau'], 'nreg': M['n_reg'],
  'micro': {'cis': micro('cis'), 'd40': micro('d40'), 'ceo': micro('ceo')},
  'grupos': grupos, 'cfg': cfg, 'polls': polls_build.polls,
  'cat2023': exd(M['b_reg']['09']),
