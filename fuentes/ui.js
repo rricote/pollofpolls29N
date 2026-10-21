@@ -32,7 +32,7 @@ function head() {
   const g = S.groups.find(x => x.id === 'pp_vox_der'), gs = S.groups.find(x => x.id === 'psoe_socios');
   const pt = p => p > 0.99 ? 'más del 99 %' : p < 0.01 ? 'menos del 1 %' : Math.round(p * 100) + ' %';
   const nm = A.act.filter(r => r.p.src === 'micro').length;
-  $('#sub').innerHTML = `Media de <b>${A.act.length}</b> encuestas${nm ? ` (${nm} recalculadas desde microdatos)` : ''}, equivalentes a <b>${nf(A.nEff, 0)}</b> con el mismo peso. PP, Vox y derecha suman <b>${Math.round(g.mean)}</b> escaños y llegan a 176 en <b>${pt(g.p176)}</b> de las simulaciones; PSOE, Sumar y socios, <b>${Math.round(gs.mean)}</b> y <b>${pt(gs.p176)}</b>. No es una predicción.`;
+  $('#sub').innerHTML = `Media de <b>${A.act.length}</b> encuestas${nm ? ` (${nm} recalculadas desde microdatos)` : ''}, equivalentes a <b>${nf(A.nEff, 0)}</b> con el mismo peso. PP, Vox y derecha suman <b>${Math.round(g.mean)}</b> escaños y llegan a 176 en <b>${pt(g.p176)}</b> de las simulaciones; PSOE, Frente Amplio y socios, <b>${Math.round(gs.mean)}</b> y <b>${pt(gs.p176)}</b>. No es una predicción.`;
 }
 
 function votes() {
@@ -51,26 +51,26 @@ function chips() {
   $('#chips').innerHTML = PN.filter(p => !['OTROS'].includes(p.k) && st.A.T[KI[p.k]] > 0).map(p => `<button type="button" class="chip" data-k="${p.k}" aria-pressed="${st.series.has(p.k)}" style="--c:var(--c-${p.k})"><i></i>${esc(p.name)}</button>`).join('');
   $('#chips').querySelectorAll('.chip').forEach(c => c.onclick = () => { const k = c.dataset.k; if (st.series.has(k)) { if (st.series.size > 1) st.series.delete(k) } else st.series.add(k); chips(); chart() });
 }
-function pval(r, k, o) { const v = r.vec; if (o.unity && k === 'SUMAR') return Math.min(0.3, (v[KI.SUMAR] + v[KI.PODEMOS]) * o.bonus); return v[KI[k]] }
+function pval(r, k, o) { if (k === 'SUMAR' || k === 'PODEMOS') return chartMain(r.vec, o)[k]; return r.vec[KI[k]] }
 function chart() {
   const svg = $('#chart'), { A, S } = st, o = st.o, keys = [...st.series].filter(k => A.T[KI[k]] > 0);
   const narrow = svg.parentElement.clientWidth < 560, W = narrow ? 480 : 640, H = narrow ? 400 : 560, m = { l: 40, r: narrow ? 14 : 150, t: 14, b: 30 };
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  const act = A.act, ds = act.map(r => dayNum(r.p.date)), d0 = Math.min(...ds, dayNum(o.ref) - 20) - 1, d1 = dayNum(o.ref) + 1;
-  const vals = []; keys.forEach(k => { act.forEach(r => vals.push(pval(r, k, o))); vals.push(S.share[KI[k]].lo, S.share[KI[k]].hi) });
+  const CHW = 100, act = A.act.filter(r => dayNum(r.p.date) >= dayNum(o.ref) - CHW), ds = act.map(r => dayNum(r.p.date)), d0 = Math.min(...ds, dayNum(o.ref) - 20) - 1, d1 = dayNum(o.ref) + 1;
+  const vals = []; keys.forEach(k => { act.forEach(r => { const x = pval(r, k, o); if (isFinite(x)) vals.push(x) }); vals.push(S.share[KI[k]].lo, S.share[KI[k]].hi) });
   let y0 = Math.floor((Math.min(...vals) - 0.004) * 50) / 50, y1 = Math.ceil((Math.max(...vals) + 0.006) * 50) / 50;
   const step = (y1 - y0) > 0.3 ? 0.1 : (y1 - y0) > 0.12 ? 0.05 : 0.02; y0 = Math.max(0, Math.floor(y0 / step) * step); y1 = Math.ceil(y1 / step) * step;
   const X = d => m.l + (d - d0) / (d1 - d0) * (W - m.l - m.r), Y = v => H - m.b - (v - y0) / (y1 - y0) * (H - m.t - m.b);
   let s = '';
   for (let v = y0; v <= y1 + 1e-9; v += step) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--rule)"/><text x="${m.l - 7}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${Math.round(v * 100)}%</text>`;
-  const ticks = []; for (let d = Math.ceil(d0); d <= d1; d++) { const dt = new Date(d * MS); if (dt.getUTCDay() === 1) ticks.push(d) }
+  const ticks = []; { const stp = (d1 - d0) > 60 ? 14 : 7; let first = Math.ceil(d0); while (new Date(first * MS).getUTCDay() !== 1) first++; for (let d = first; d <= d1; d += stp) ticks.push(d) }
   ticks.forEach(d => s += `<text x="${X(d)}" y="${H - m.b + 18}" text-anchor="middle" font-size="11" fill="var(--muted)">${new Date(d * MS).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</text>`);
   const labs = [];
   keys.forEach(k => {
     const i = KI[k], col = `var(--c-${k})`, tr = [];
-    for (let d = d0; d <= d1 + 0.01; d += 0.5) { let sw = 0, sv = 0; act.forEach(r => { const z = (dayNum(r.p.date) - d) / 6, w = r.p.q * Math.sqrt(Math.min(pollNeff(r.p, o), 2500)) * Math.exp(-z * z / 2); sw += w; sv += w * pval(r, k, o) }); if (sw > 0.6) tr.push(`${X(d).toFixed(1)},${Y(sv / sw).toFixed(1)}`) }
+    for (let d = d0; d <= d1 + 0.01; d += 0.5) { let sw = 0, sv = 0; act.forEach(r => { const x = pval(r, k, o); if (!isFinite(x)) return; const z = (dayNum(r.p.date) - d) / 9, w = r.p.q * Math.sqrt(Math.min(pollNeff(r.p, o), 2500)) * Math.exp(-z * z / 2); sw += w; sv += w * x }); if (sw > 3) tr.push(`${X(d).toFixed(1)},${Y(sv / sw).toFixed(1)}`) }
     if (tr.length > 1) s += `<polyline points="${tr.join(' ')}" fill="none" stroke="${col}" stroke-width="2.4" stroke-linejoin="round" opacity=".9"/>`;
-    act.forEach(r => { const rad = 2.6 + 5 * Math.sqrt(r.share * act.length) / 2, x = X(dayNum(r.p.date)), y = Y(pval(r, k, o));
+    act.forEach(r => { const pv = pval(r, k, o); if (!isFinite(pv)) return; const rad = Math.min(8, 2.6 + 5 * Math.sqrt(r.share * A.act.length) / 2), x = X(dayNum(r.p.date)), y = Y(pv);
       const tip = `<title>${esc(r.p.name)} · ${dshort(r.p.date)}: ${fmt(pval(r, k, o))}</title>`;
       s += r.p.src === 'micro' ? `<rect x="${x - rad}" y="${y - rad}" width="${rad * 2}" height="${rad * 2}" fill="${col}" fill-opacity=".35" stroke="${col}" stroke-width="1.5">${tip}</rect>` : `<circle cx="${x}" cy="${y}" r="${rad}" fill="${col}" fill-opacity=".3" stroke="${col}" stroke-width="1.3">${tip}</circle>` });
     const lo = S.share[i].lo, hi = S.share[i].hi, x = X(d1);
@@ -86,7 +86,7 @@ function chart() {
 
 function seats() {
   const { S } = st, si = seatsInt(), b = D.seats2023;
-  const seq = ['PODEMOS', 'SUMAR', 'BILDU', 'BNG', 'ERC', 'PSOE', 'JUNTS', 'PNV', 'CC', 'PP', 'UPN', 'SALF', 'VOX'].map(k => KI[k]);
+  const seq = ['PODEMOS', 'SUMAR', 'UPC', 'COMPROMIS', 'ADELANTE', 'BILDU', 'BNG', 'ERC', 'PSOE', 'JUNTS', 'PNV', 'CC', 'PP', 'UPN', 'SALF', 'VOX'].map(k => KI[k]);
   const list = []; seq.forEach(i => { for (let n = 0; n < si[i]; n++) list.push(i) });
   const rows = 9, cx = 200, cy = 200, r0 = 82, R = 190, radii = [...Array(rows)].map((_, k) => r0 + (R - r0) * k / (rows - 1)), sr = radii.reduce((a, b) => a + b, 0);
   let cnt = radii.map(r => Math.round(350 * r / sr)); cnt[rows - 1] += 350 - cnt.reduce((a, b) => a + b, 0);
@@ -120,12 +120,12 @@ function pollRow(p) {
     const sh = (x === undefined || x === null || x === '' || isNaN(x)) ? '' : nf(x * 100, 1);
     return micro ? `<td class="num ro">${p.regional ? '' : sh}</td>` : `<td><input class="in num" inputmode="decimal" data-id="${p.id}" data-k="${k}" value="${sh}" aria-label="${esc(p.name)} ${PNAME[k]}"></td>` };
   const note = p.note ? `<span class="pn">${esc(p.note)}</span>` : '';
-  const warn = micro ? '' : `<span class="pn warn" ${ok ? 'hidden' : ''}>Faltan PP, PSOE, Vox, Sumar o Podemos</span>`;
+  const warn = micro ? '' : `<span class="pn warn" ${ok ? 'hidden' : ''}>Faltan PP, PSOE, Vox, Frente Amplio o Podemos</span>`;
   return `<tr data-id="${p.id}" class="${p.include && ok ? '' : 'off'}"><td class="c"><input type="checkbox" data-id="${p.id}" data-f="include" ${p.include ? 'checked' : ''} ${p.regional ? 'disabled' : ''} aria-label="Usar ${esc(p.name)}"></td>
   <td class="nm2">${micro ? `<span class="mu" title="Recalculada desde microdatos">μ</span>` : `<input class="in txt" data-id="${p.id}" data-f="name" value="${esc(p.name)}" aria-label="Nombre">`}${micro ? esc(p.name) : ''}${note}${warn}</td>
   <td><input class="in" type="date" data-id="${p.id}" data-f="date" value="${p.date}" aria-label="Fecha ${esc(p.name)}"></td>
   <td>${micro ? `<span class="num ro">${nf(p.n)}</span>` : `<input class="in num" inputmode="numeric" data-id="${p.id}" data-f="n" value="${p.n}" aria-label="Muestra ${esc(p.name)}">`}</td>
-  ${['PP', 'PSOE', 'VOX', 'SUMAR', 'PODEMOS', 'SALF'].map(cell).join('')}
+  ${['PP', 'PSOE', 'VOX', 'SUMAR', 'PODEMOS', 'SALF', 'ADELANTE'].map(cell).join('')}
   <td><input class="in num q" inputmode="decimal" data-id="${p.id}" data-f="q" value="${String(p.q).replace('.', ',')}" aria-label="Calidad ${esc(p.name)}"></td>
   <td class="num pw" id="w-${p.id}">–</td>
   <td class="c">${micro ? '' : `<button type="button" class="x" data-del="${p.id}" aria-label="Quitar ${esc(p.name)}">×</button>`}</td></tr>`;
@@ -204,7 +204,15 @@ function drawMap(target, cfg) {
 }
 const pts = x => { const t = nf(Math.abs(x) * 100, 1); return (Math.abs(x) * 100 < 0.05 ? '' : x > 0 ? '+' : '−') + t };
 const mark = (k, w) => `<span class="sw" style="background:var(--c-${k})"></span>`;
-function present(j, k) { return D.prov[j].sh[k] > 0 || ((k === KI.PODEMOS || k === KI.SALF) && st.A.T[k] > 0) }
+function present(j, k) {
+  const p = D.prov[j], C = D.cfg, K = KEYS[k];
+  if (K === 'PODEMOS') return st.A.T[k] > 0 && !C.regPodemosCoal.includes(p.ccaa);   // en Cataluña, C. Valenciana y Canarias va dentro de otras listas
+  if (K === 'SUMAR') return p.ccaa !== '05' && p.sh[k] > 0;                           // en Canarias, dentro de Unidad del Pueblo Canario
+  if (K === 'ADELANTE') return p.ccaa === '01';
+  if (K === 'COMPROMIS') return p.ccaa === '10';
+  if (K === 'UPC') return p.ccaa === '05';
+  return p.sh[k] > 0 || (K === 'SALF' && st.A.T[k] > 0);
+}
 const NC = {};
 function need(j, k) {
   const key = j + '_' + k; if (NC[key]) return NC[key];
@@ -311,7 +319,7 @@ function partyPage() {
   $('#ptab').innerHTML = `<thead><tr><th>Provincia</th><th>Esc.</th><th>Voto est.</th><th title="Voto necesario para el primer escaño">Necesita</th><th title="Voto estimado menos voto necesario, en puntos">Dif.</th><th title="Probabilidad de al menos un escaño">Prob. ≥1</th></tr></thead><tbody>${pr.map(x => { const r = x.r, g = r.share - r.n1;
     return `<tr><td><button type="button" class="lk" data-prov="${x.p.id}">${esc(x.p.name)}</button> <small class="mut">${x.p.seats}</small></td><td class="num s2">${r.c || '·'}</td><td class="num">${fmt(r.share)}</td><td class="num">${fmt(r.n1)}</td><td class="num ${g >= 0 ? 'gd' : 'bd'}">${pts(g)}</td><td class="num">${r.hs.p1 >= 0.995 ? '>99 %' : r.hs.p1 < 0.005 ? '<1 %' : Math.round(r.hs.p1 * 100) + ' %'}</td></tr>` }).join('')}</tbody>`;
   $('#ptab').querySelectorAll('[data-prov]').forEach(b => b.onclick = () => { st.sel = b.dataset.prov; setTab('provincias') });
-  $('#pnote').textContent = ex < NJ ? `${PN[k].name} no aparece en las ${NJ - ex} provincias donde no se presentó en 2023.` : '';
+  $('#pnote').textContent = ex < NJ ? `${PN[k].name} no se presenta en las ${NJ - ex} provincias restantes.` : '';
 }
 
 /* ---- pestañas ---- */
@@ -333,14 +341,23 @@ function bindPages() {
 /* ---- microdatos ---- */
 function micro() {
   const mm = D.micro, o = st.o, nm = k => nf(k * 100, 1);
-  const cols = ['PP', 'PSOE', 'VOX', 'SUMAR', 'PODEMOS', 'SALF'];
+  const cols = ['PP', 'PSOE', 'VOX', 'SUMAR', 'PODEMOS', 'SALF', 'ADELANTE'];
   const row = (lab, v, cls) => `<tr class="${cls || ''}"><td>${lab}</td>${cols.map(k => `<td class="num">${v[k] === undefined ? '–' : nm(v[k])}</td>`).join('')}<td class="num">${v.R === undefined ? '–' : nm(v.R)}</td></tr>`;
   const vv = arr => { const v = {}; cols.forEach(k => v[k] = arr[KI[k]]); v.R = 1 - cols.reduce((a, k) => a + arr[KI[k]], 0); return v };
   const pub = (pp, ps, vx, su, po, sa) => { const v = { PP: pp / 100, PSOE: ps / 100, VOX: vx / 100 }; if (su !== undefined) { v.SUMAR = su / 100; v.PODEMOS = po / 100; v.SALF = sa / 100; v.R = 1 - (pp + ps + vx + su + po + sa) / 100 } return v };
   let h = `<thead><tr><th>Encuesta y método</th>${cols.map(k => `<th>${esc(PNAME[k])}</th>`).join('')}<th>Resto</th></tr></thead><tbody>`;
-  h += `<tr class="grp"><td colspan="8">CIS 3577 · ${nf(mm.cis.n)} entrevistas</td></tr>` + row('Publicada por el CIS', pub(25.5, 31.0, 16.6)) + row('Bruta (voto + simpatía)', vv(mm.cis.A)) + row('Reponderada por recuerdo', vv(mm.cis.B), o.variant === 'B' ? 'sel' : '') + row('Reponderada + indecisos', vv(mm.cis.C), o.variant === 'C' ? 'sel' : '');
-  h += `<tr class="grp"><td colspan="8">40dB flash, 7-8 oct · ${nf(mm.d40.n)} entrevistas</td></tr>` + row('Publicada por 40dB', pub(31.9, 28.1, 18.9, 5.3, 2.3, 1.8)) + row('Bruta (intención + afinidad)', vv(mm.d40.A)) + row('Reponderada por recuerdo', vv(mm.d40.B), o.variant === 'B' ? 'sel' : '') + row('Reponderada + indecisos', vv(mm.d40.C), o.variant === 'C' ? 'sel' : '');
+  h += `<tr class="grp"><td colspan="9">CIS 3577 · ${nf(mm.cis.n)} entrevistas</td></tr>` + row('Publicada por el CIS', pub(25.5, 31.0, 16.6)) + row('Bruta (voto + simpatía)', vv(mm.cis.A)) + row('Reponderada por recuerdo', vv(mm.cis.B), o.variant === 'B' ? 'sel' : '') + row('Reponderada + indecisos', vv(mm.cis.C), o.variant === 'C' ? 'sel' : '');
+  h += `<tr class="grp"><td colspan="9">40dB flash, 7-8 oct · ${nf(mm.d40.n)} entrevistas</td></tr>` + row('Publicada por 40dB', pub(31.9, 28.1, 18.9, 5.3, 2.3, 1.8)) + row('Bruta (intención + afinidad)', vv(mm.d40.A)) + row('Reponderada por recuerdo', vv(mm.d40.B), o.variant === 'B' ? 'sel' : '') + row('Reponderada + indecisos', vv(mm.d40.C), o.variant === 'C' ? 'sel' : '');
   h += `</tbody>`; $('#mt').innerHTML = h;
+  // nueva configuración de candidaturas: dónde se integra el voto de Podemos y del espacio ex-Sumar
+  const C = D.cfg, tf = st.A.tf, pts = x => nf(x * 100, 1);
+  const pr = [['09', 'cat', 'ERC (Cataluña)', tf.podCat], ['10', 'cv', 'Compromís-Front Valencià', tf.podCV], ['05', 'can', 'Unidad del Pueblo Canario', tf.podCan]];
+  let z = `<thead><tr><th>Dónde está el voto de Podemos</th><th>CIS 3577</th><th>40dB flash</th><th>Usado</th><th>Puntos de voto en la media</th></tr></thead><tbody>`;
+  z += pr.map(([rg, c, lab, pt]) => `<tr><td>Se integra en ${esc(lab)}</td><td class="num">${pts(C.locPodemosCIS[rg])} %</td><td class="num">${pts(C.locPodemos40[rg])} %</td><td class="num">${pts(C.fPod[c])} %</td><td class="num">${nf(pt * 100, 2)}</td></tr>`).join('');
+  const sepU = 1 - C.fPod.cat - C.fPod.cv - C.fPod.can;
+  z += `<tr class="sel"><td>Concurre por separado (resto de España)</td><td class="num">${pts(1 - pr.reduce((a, x) => a + C.locPodemosCIS[x[0]], 0))} %</td><td class="num">${pts(1 - pr.reduce((a, x) => a + C.locPodemos40[x[0]], 0))} %</td><td class="num">${pts(sepU)} %</td><td class="num">${nf(st.A.T[KI.PODEMOS] * 100, 2)}</td></tr></tbody>`;
+  $('#pz').innerHTML = z;
+  $('#pzn').textContent = `Porcentaje de los votantes de Podemos que viven en cada comunidad, medido en CIS y 40dB (reponderado). El valor usado mezcla a partes iguales las dos encuestas y el reparto del voto Sumar de 2023, porque la muestra de Podemos por comunidad es corta. Los votantes de Cataluña, la Comunitat Valenciana y Canarias se suman a ERC, Compromís-Front Valencià y Unidad del Pueblo Canario. El espacio ex-Sumar pasa en parte a Compromís (${pts(C.wFA.cv)} % de su voto, un ${pts(C.kc)} % del que tenía en la Comunitat Valenciana) y a Unidad del Pueblo Canario (${pts(C.wFA.can)} %), que sustituye a Frente Amplio en Canarias.`;
   // CEO + fidelidad
   const ck = ['PSOE', 'PP', 'VOX', 'SUMAR', 'ERC', 'JUNTS'];
   const crow = (lab, arr, cls) => `<tr class="${cls || ''}"><td>${lab}</td>${ck.map(k => `<td class="num">${nm(arr[KI[k]])}</td>`).join('')}</tr>`;

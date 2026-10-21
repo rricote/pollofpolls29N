@@ -9,8 +9,8 @@ warnings.filterwarnings('ignore')
 W = '/tmp/claude-0/-home-claude/eea0bbaf-2db4-5718-a729-17707b9905cb/scratchpad/'
 SIM = W + 'sim/'
 UP = '/mnt/user-data/uploads/Simulador elecciones/Encuestas/'
-KEYS = ['PP','PSOE','VOX','SUMAR','PODEMOS','SALF','ERC','JUNTS','BILDU','PNV','BNG','CC','UPN','OTROS','BLANCO']
-MAIN = ['PP','PSOE','VOX','SUMAR','PODEMOS','SALF']
+KEYS = ['PP','PSOE','VOX','SUMAR','PODEMOS','SALF','ERC','JUNTS','BILDU','PNV','BNG','CC','UPN','ADELANTE','OTROS','BLANCO']   # ADELANTE: Adelante Andalucía (no concurrió en 2023: base 0)
+MAIN = ['PP','PSOE','VOX','SUMAR','PODEMOS','SALF','ADELANTE']
 
 # ---------- resultados 2023 (provincia / CCAA) ----------
 cm = {5:'PP',2:'PSOE',6:'VOX',10:'SUMAR',50:'ERC',57:'JUNTS',71:'BILDU',75:'PNV',65:'BNG',31:'CC',74:'UPN'}
@@ -82,7 +82,7 @@ cis = pd.read_csv(UP+'CIS 3577/3577_num.csv', sep=';', encoding='utf-8-sig', low
 cis.columns = [c.split(':')[0] for c in cis.columns]
 cis = cis.copy()
 cis_party = {1:'PSOE',2:'PP',3:'VOX',21:'SUMAR',8:'PODEMOS',28:'SALF',901:'ERC',902:'JUNTS',1602:'BILDU',1601:'PNV',
-             1201:'BNG',503:'CC',1501:'UPN',6:'OTROS',101:'OTROS',8995:'OTROS',8996:'BLANCO',29:'COAL'}
+             1201:'BNG',503:'CC',1501:'UPN',6:'OTROS',101:'ADELANTE',8995:'OTROS',8996:'BLANCO',29:'COAL'}
 def cis_vote(r):
     a = r.INTENCIONGR
     if a in cis_party: return cis_party[a]
@@ -137,7 +137,7 @@ def p4(x):
     x = str(x)
     pm = [('PSOE','PSOE'),('PP (','PP'),('Vox','VOX'),('Sumar','SUMAR'),('Podemos','PODEMOS'),('Se acabó','SALF'),('ERC','ERC'),
           ('JxCAT','JUNTS'),('EAJ','PNV'),('Bildu','BILDU'),('Coalición Canaria','CC'),('BNG','BNG'),('UPN','UPN'),
-          ('CUP','OTROS'),('Adelante','OTROS'),('España Vaciada','OTROS'),('UPL','OTROS'),('Nueva Canarias','OTROS'),('Otro','OTROS'),
+          ('CUP','OTROS'),('Adelante','ADELANTE'),('España Vaciada','OTROS'),('UPL','OTROS'),('Nueva Canarias','OTROS'),('Otro','OTROS'),
           ('Votaría en blanco','BLANCO')]
     for a, b in pm:
         if x.startswith(a) or (a == 'Bildu' and 'Bildu' in x): return b
@@ -218,6 +218,35 @@ print('2023 Cat', (b_reg.loc['09']*100).round(1).to_dict())
 res['ceo'] = {'id':'CEO 1169 (Cataluña)','n':int(len(ce)),'field':'2026-09-16','nA':nAc,'nB':nBc,
               'A':Ac.round(5).to_dict(),'B':Bc.round(5).to_dict(),'C':Cc.round(5).to_dict()}
 
+# ---------- dónde viven los votantes de Podemos y del espacio ex-Sumar (nueva configuración de candidaturas) ----------
+d4_reg = {}
+for rg, sub in d4.groupby('reg'):
+    s_, ne_ = shares(sub, sub.wBp, 'vote')
+    d4_reg[rg] = (s_, ne_, len(sub))
+def loc_frac(p, which):
+    out = {}
+    for rg in regions_all:
+        if which == 'cis': sh = cis_reg[rg][0][p]; ne = cis_reg[rg][1]
+        else:
+            if rg not in d4_reg: out[rg] = None; continue
+            sh = d4_reg[rg][0][p]; ne = d4_reg[rg][1]
+        out[rg] = sh*float(regmeta.loc[rg,'valid'])
+    return out
+regions_all = sorted(reg.index)
+def norm(d):
+    d = {k: (v if v is not None else 0.0) for k, v in d.items()}; t = sum(d.values()); return {k: v/t for k, v in d.items()}
+loc = {}
+for p in ('PODEMOS','SUMAR','ADELANTE'):
+    a = norm(loc_frac(p,'cis')); b = norm(loc_frac(p,'d40'))
+    na, nb = nB, nB4
+    loc[p] = {rg: round((a[rg]*na + b[rg]*nb)/(na+nb), 5) for rg in regions_all}
+    loc[p+'_cis'] = {rg: round(a[rg],5) for rg in regions_all}
+    loc[p+'_d40'] = {rg: round(b[rg],5) for rg in regions_all}
+res['loc'] = loc
+# Adelante Andalucía: cuota entre votantes de Andalucía (media CIS/40dB)
+res['adelante_and'] = {'cis': float(cis_reg['01'][0]['ADELANTE']), 'd40': float(d4_reg['01'][0]['ADELANTE']), 'n_cis': int(cis_reg['01'][2]), 'n_d40': int(d4_reg['01'][2])}
+print('LOC Podemos', {k:v for k,v in loc['PODEMOS'].items() if v>0.04}); print('LOC Sumar', {k:v for k,v in loc['SUMAR'].items() if v>0.04}); print('Adelante en Andalucía', res['adelante_and'])
+
 # ---------- factores regionales (swing relativo respecto al nacional) ----------
 # Referencia nacional: media de CIS y 40dB (variante B) para que el sesgo general de cada encuesta no se confunda con efecto regional.
 nat_ref = (B*nB + B4*nB4)/(nB + nB4)
@@ -233,7 +262,7 @@ for rg in regions:
     row = {}
     s_c, ne, n = cis_reg[rg]
     for p in KEYS:
-        if p in ('PODEMOS', 'SALF', 'BLANCO', 'OTROS') or b_reg.loc[rg, p] < 0.02:
+        if p in ('PODEMOS', 'SALF', 'ADELANTE', 'BLANCO', 'OTROS') or b_reg.loc[rg, p] < 0.02:
             continue
         # CIS (referencia: su propio nacional)
         e1, se1 = lnf(s_c, ne, b_reg.loc[rg], b_nat, B, p)
