@@ -15,7 +15,7 @@ function schedule(ms = 120) { clearTimeout(timer); $('#pill').textContent = 'Rec
 function compute() {
   const A = aggregate(st.polls, st.o); st.A = A;
   if (!A) { $('#headline').textContent = 'Marca al menos una encuesta con datos completos'; $('#sub').textContent = ''; $('#pill').textContent = 'Sin datos'; return }
-  st.S = simulate(A.T, st.o);
+  st.S = simulate(A.T, st.o, A.Tsep);
   renderAll();
 }
 function renderAll() {
@@ -24,11 +24,25 @@ function renderAll() {
   $('#pill').textContent = 'Poll of polls · ' + new Date(st.o.ref + 'T12:00:00Z').toLocaleDateString('es-ES', { day: 'numeric', month: 'long', timeZone: 'UTC' });
 }
 function seatsInt() { return lr(st.S.seats.map(x => x.mean), 350) }
+const FACNAME = 'Frente Amplio + confluencias', FACI = () => FACK.map(k => KI[k]);
+const grp = () => !!st.o.group;
+const dnm = i => (grp() && i === KI.SUMAR) ? FACNAME : PN[i].name;
+const dk = k => (grp() && k === 'SUMAR') ? FACNAME : PNAME[k];
+function view() {            // datos de la portada: con las confluencias agrupadas en la casilla de Frente Amplio, o tal cual
+  const { A, S } = st, T = Array.from(A.T), sh = S.share.map(x => ({ ...x })), se = S.seats.map(x => ({ ...x })), rng = { ...A.rng };
+  if (grp()) {
+    const F = FACI(), z = { mean: 0, lo: 0, hi: 0, med: 0 };
+    T[KI.SUMAR] = F.reduce((a, i) => a + A.T[i], 0); sh[KI.SUMAR] = { ...S.facShare }; se[KI.SUMAR] = { ...S.facSeats };
+    F.forEach(i => { if (i !== KI.SUMAR) { T[i] = 0; sh[i] = { ...z }; se[i] = { ...z } } });
+    const xs = A.act.map(r => facMain(r.vec, st.o, A.adel)); rng.SUMAR = [Math.min(...xs), Math.max(...xs)];
+  }
+  return { T, sh, se, rng, si: lr(se.map(x => x.mean), 350) };
+}
 
 function head() {
-  const { A, S } = st, si = seatsInt();
-  const order = si.map((v, i) => i).sort((a, b) => S.seats[b].mean - S.seats[a].mean), a = order[0], b = order[1];
-  $('#headline').textContent = `La media de encuestas da al ${PNAME[KEYS[a]]} ${si[a]} escaños, ${si[a] - si[b]} más que ${KEYS[b] === 'PSOE' ? 'al ' : 'a '}${PNAME[KEYS[b]]}`;
+  const { A, S } = st, V = view(), si = V.si;
+  const order = si.map((v, i) => i).sort((a, b) => V.se[b].mean - V.se[a].mean), a = order[0], b = order[1];
+  $('#headline').textContent = `La media de encuestas da al ${dnm(a)} ${si[a]} escaños, ${si[a] - si[b]} más que ${KEYS[b] === 'PSOE' ? 'al ' : 'a '}${dnm(b)}`;
   const g = S.groups.find(x => x.id === 'pp_vox_der'), gs = S.groups.find(x => x.id === 'psoe_socios');
   const pt = p => p > 0.99 ? 'más del 99 %' : p < 0.01 ? 'menos del 1 %' : Math.round(p * 100) + ' %';
   const nm = A.act.filter(r => r.p.src === 'micro').length;
@@ -36,24 +50,24 @@ function head() {
 }
 
 function votes() {
-  const { A, S } = st, b = D.nat2023, mx = 0.4;
-  const idx = PN.map((p, i) => i).filter(i => A.T[i] > 0.0005 || b[i] > 0.0005).sort((x, y) => A.T[y] - A.T[x]);
+  const { A } = st, V = view(), S = { share: V.sh }, b = D.nat2023, mx = 0.4;
+  const idx = PN.map((p, i) => i).filter(i => V.T[i] > 0.0005 || b[i] > 0.0005).sort((x, y) => V.T[y] - V.T[x]);
   $('#votes').innerHTML = idx.map(i => {
-    const k = KEYS[i], m = S.share[i].mean, mg = (S.share[i].hi - S.share[i].lo) / 2, r = A.rng[k];
+    const k = KEYS[i], m = S.share[i].mean, mg = (S.share[i].hi - S.share[i].lo) / 2, r = V.rng[k];
     const rg = r ? `<span class="rgw" style="left:${r[0] / mx * 100}%;width:${(r[1] - r[0]) / mx * 100}%"></span>` : '';
-    return `<div class="prow"><div class="top"><span class="nm"><span class="sw" style="background:var(--c-${k})"></span>${esc(PN[i].name)}</span><span class="pc">${fmt(A.T[i])}</span><span class="mg">±${nf(mg * 100, 1)}</span></div>
-    <div class="bar"><i style="width:${A.T[i] / mx * 100}%;background:var(--c-${k})"></i>${rg}<s style="left:${b[i] / mx * 100}%"></s></div>
+    return `<div class="prow"><div class="top"><span class="nm"><span class="sw" style="background:var(--c-${k})"></span>${esc(dnm(i))}</span><span class="pc">${fmt(V.T[i])}</span><span class="mg">±${nf(mg * 100, 1)}</span></div>
+    <div class="bar"><i style="width:${V.T[i] / mx * 100}%;background:var(--c-${k})"></i>${rg}<s style="left:${b[i] / mx * 100}%"></s></div>
     <div class="ft">${r ? `Encuestas ${fmt(r[0])} a ${fmt(r[1])} · ` : ''}2023: ${fmt(b[i])}</div></div>`;
   }).join('');
 }
 
 function chips() {
-  $('#chips').innerHTML = PN.filter(p => !['OTROS'].includes(p.k) && st.A.T[KI[p.k]] > 0).map(p => `<button type="button" class="chip" data-k="${p.k}" aria-pressed="${st.series.has(p.k)}" style="--c:var(--c-${p.k})"><i></i>${esc(p.name)}</button>`).join('');
+  $('#chips').innerHTML = PN.filter(p => !['OTROS'].includes(p.k) && st.A.T[KI[p.k]] > 0 && !(grp() && FACK.includes(p.k) && p.k !== 'SUMAR')).map(p => `<button type="button" class="chip" data-k="${p.k}" aria-pressed="${st.series.has(p.k)}" style="--c:var(--c-${p.k})"><i></i>${esc(dk(p.k))}</button>`).join('');
   $('#chips').querySelectorAll('.chip').forEach(c => c.onclick = () => { const k = c.dataset.k; if (st.series.has(k)) { if (st.series.size > 1) st.series.delete(k) } else st.series.add(k); chips(); chart() });
 }
-function pval(r, k, o) { if (k === 'SUMAR' || k === 'PODEMOS') return chartMain(r.vec, o)[k]; return r.vec[KI[k]] }
+function pval(r, k, o) { if (grp() && k === 'SUMAR') return facMain(r.vec, o, st.A.adel); if (k === 'SUMAR' || k === 'PODEMOS') return chartMain(r.vec, o)[k]; return r.vec[KI[k]] }
 function chart() {
-  const svg = $('#chart'), { A, S } = st, o = st.o, keys = [...st.series].filter(k => A.T[KI[k]] > 0);
+  const svg = $('#chart'), { A } = st, V = view(), S = { share: V.sh }, o = st.o, keys = [...st.series].filter(k => V.T[KI[k]] > 0 && !(grp() && FACK.includes(k) && k !== 'SUMAR'));
   const narrow = svg.parentElement.clientWidth < 560, W = narrow ? 480 : 640, H = narrow ? 400 : 560, m = { l: 40, r: narrow ? 14 : 150, t: 14, b: 30 };
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   const CHW = 100, act = A.act.filter(r => dayNum(r.p.date) >= dayNum(o.ref) - CHW), ds = act.map(r => dayNum(r.p.date)), d0 = Math.min(...ds, dayNum(o.ref) - 20) - 1, d1 = dayNum(o.ref) + 1;
@@ -74,18 +88,18 @@ function chart() {
       const tip = `<title>${esc(r.p.name)} · ${dshort(r.p.date)}: ${fmt(pval(r, k, o))}</title>`;
       s += r.p.src === 'micro' ? `<rect x="${x - rad}" y="${y - rad}" width="${rad * 2}" height="${rad * 2}" fill="${col}" fill-opacity=".35" stroke="${col}" stroke-width="1.5">${tip}</rect>` : `<circle cx="${x}" cy="${y}" r="${rad}" fill="${col}" fill-opacity=".3" stroke="${col}" stroke-width="1.3">${tip}</circle>` });
     const lo = S.share[i].lo, hi = S.share[i].hi, x = X(d1);
-    s += `<line x1="${x}" x2="${x}" y1="${Y(hi)}" y2="${Y(lo)}" stroke="${col}" stroke-width="3" opacity=".45"/><circle cx="${x}" cy="${Y(A.T[i])}" r="4.2" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>`;
-    labs.push({ y: Y(A.T[i]), k, v: A.T[i] });
+    s += `<line x1="${x}" x2="${x}" y1="${Y(hi)}" y2="${Y(lo)}" stroke="${col}" stroke-width="3" opacity=".45"/><circle cx="${x}" cy="${Y(V.T[i])}" r="4.2" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>`;
+    labs.push({ y: Y(V.T[i]), k, v: V.T[i] });
   });
   if (!narrow) {
     const L = labs.sort((a, b) => a.y - b.y); for (let n = 1; n < L.length; n++) if (L[n].y - L[n - 1].y < 14) L[n].y = L[n - 1].y + 14;
-    const tx = W - m.r + 12; L.forEach(o => s += `<text x="${tx}" y="${o.y + 4}" font-size="11.5" font-weight="600" fill="var(--c-${o.k})">${esc(PNAME[o.k])} ${nf(o.v * 100, 1)}%</text>`);
+    const tx = W - m.r + 12; L.forEach(o => s += `<text x="${tx}" y="${o.y + 4}" font-size="11.5" font-weight="600" fill="var(--c-${o.k})">${esc(dk(o.k))} ${nf(o.v * 100, 1)}%</text>`);
   }
   svg.innerHTML = s;
 }
 
 function seats() {
-  const { S } = st, si = seatsInt(), b = D.seats2023;
+  const V = view(), S = { seats: V.se }, si = V.si, b = D.seats2023;
   const seq = ['PODEMOS', 'SUMAR', 'UPC', 'COMPROMIS', 'ADELANTE', 'BILDU', 'BNG', 'ERC', 'PSOE', 'JUNTS', 'PNV', 'CC', 'PP', 'UPN', 'SALF', 'VOX'].map(k => KI[k]);
   const list = []; seq.forEach(i => { for (let n = 0; n < si[i]; n++) list.push(i) });
   const rows = 9, cx = 200, cy = 200, r0 = 82, R = 190, radii = [...Array(rows)].map((_, k) => r0 + (R - r0) * k / (rows - 1)), sr = radii.reduce((a, b) => a + b, 0);
@@ -95,14 +109,14 @@ function seats() {
   $('#hemi').innerHTML = pts.map((p, n) => { const i = list[n]; return i === undefined ? '' : `<circle cx="${(cx + p[1] * Math.cos(p[0])).toFixed(1)}" cy="${(cy - p[1] * Math.sin(p[0])).toFixed(1)}" r="4.5" fill="var(--c-${KEYS[i]})"/>` }).join('');
   const idx = PN.map((p, i) => i).filter(i => i < NPAR && (si[i] > 0 || b[i] > 0 || S.seats[i].hi > 0)).sort((a, c) => S.seats[c].mean - S.seats[a].mean);
   $('#tbl tbody').innerHTML = idx.map(i => { const d = si[i] - b[i];
-    return `<tr data-k="${KEYS[i]}" class="clk" title="Ver el detalle del partido"><td><span class="sw" style="background:var(--c-${KEYS[i]})"></span>${esc(PN[i].name)}</td><td class="s">${si[i]}</td><td class="r">${S.seats[i].lo}–${S.seats[i].hi}</td><td class="d">${d > 0 ? '+' : d < 0 ? '−' : ''}${Math.abs(d) || '='}</td></tr>` }).join('');
+    return `<tr data-k="${KEYS[i]}" class="clk" title="Ver el detalle del partido"><td><span class="sw" style="background:var(--c-${KEYS[i]})"></span>${esc(dnm(i))}</td><td class="s">${si[i]}</td><td class="r">${S.seats[i].lo}–${S.seats[i].hi}</td><td class="d">${d > 0 ? '+' : d < 0 ? '−' : ''}${Math.abs(d) || '='}</td></tr>` }).join('');
 }
 function groups() {
-  const { S } = st, si = seatsInt(), VW = 700, X0 = 2, SC = (VW - 4) / 350, xs = n => X0 + n * SC;
+  const { S } = st, V = view(), si = V.si, VW = 700, X0 = 2, SC = (VW - 4) / 350, xs = n => X0 + n * SC;
   $('#groups').innerHTML = S.groups.map(g => {
-    const segs = g.parties.map(k => KI[k]).filter(i => i !== undefined && si[i] > 0).map(i => ({ i, n: si[i] })).sort((a, b) => b.n - a.n);
+    const segs = [...new Set(g.parties.map(k => KI[k]))].filter(i => i !== undefined && si[i] > 0).map(i => ({ i, n: si[i] })).sort((a, b) => b.n - a.n);
     const tot = segs.reduce((a, x) => a + x.n, 0); let x = 0, rects = '', labels = ''; const rowEnd = [-1e9, -1e9];
-    segs.forEach(sg => { const w = sg.n * SC, x1 = xs(x); rects += `<rect x="${x1.toFixed(1)}" y="40" width="${Math.max(w, 0.8).toFixed(1)}" height="26" fill="var(--c-${KEYS[sg.i]})" stroke="var(--surface)" stroke-width="1"><title>${esc(PN[sg.i].name)}: ${sg.n}</title></rect>`;
+    segs.forEach(sg => { const w = sg.n * SC, x1 = xs(x); rects += `<rect x="${x1.toFixed(1)}" y="40" width="${Math.max(w, 0.8).toFixed(1)}" height="26" fill="var(--c-${KEYS[sg.i]})" stroke="var(--surface)" stroke-width="1"><title>${esc(dnm(sg.i))}: ${sg.n}</title></rect>`;
       const big = w >= 34, fs = big ? 15 : 11, tw = String(sg.n).length * fs * 0.62, cxm = x1 + w / 2; let r = 0;
       if (cxm - tw / 2 < rowEnd[0] + 2) r = 1; if (r === 1 && cxm - tw / 2 < rowEnd[1] + 2) r = 2;
       const y = r === 0 ? 34 : r === 1 ? 21 : 8; if (r < 2) rowEnd[r] = cxm + tw / 2;
@@ -169,7 +183,7 @@ $('#reset').onclick = () => { try { localStorage.removeItem(LS) } catch (e) { } 
 function sync() {
   const o = st.o; $('#half').value = o.half; $('#halfv').textContent = o.half + ' d'; $('#variant').value = o.variant;
   $('#regInt').value = Math.round(o.regInt * 100); $('#regv').textContent = Math.round(o.regInt * 100) + '%';
-  $('#u0').checked = !o.unity; $('#u1').checked = !!o.unity; $('#nsim').value = String(o.nsim);
+  $('#g1').checked = !!o.group; $('#g0').checked = !o.group; $('#u0').checked = !o.unity; $('#u1').checked = !!o.unity; $('#nsim').value = String(o.nsim);
   $('#sdSys').value = o.sdSys; $('#sdSysv').textContent = nf(o.sdSys, 2); $('#sdProv').value = o.sdProv; $('#sdProvv').textContent = nf(o.sdProv * 100, 0) + '%';
   $('#house').value = o.house; $('#housev').textContent = o.house >= 1 ? 'Total' : o.house <= 0 ? 'Apagada' : nf(o.house * 100, 0) + ' %'; $('#lam').value = o.lam; $('#lamv').textContent = nf(o.lam, 2); $('#bonus').value = o.bonus; $('#bonusv').textContent = '×' + nf(o.bonus, 2); $('#bonusF').hidden = !o.unity;
 }
@@ -178,6 +192,7 @@ function bind() {
   $('#half').oninput = e => { o.half = +e.target.value; sync(); schedule() };
   $('#variant').onchange = e => { o.variant = e.target.value; renderTable(); schedule(30) };
   $('#regInt').oninput = e => { o.regInt = +e.target.value / 100; sync(); schedule() };
+  document.querySelectorAll('input[name=grp]').forEach(r => r.onchange = () => { o.group = $('#g1').checked; sync(); renderAll(); save() });
   document.querySelectorAll('input[name=unity]').forEach(r => r.onchange = () => { o.unity = $('#u1').checked; sync(); schedule(30) });
   $('#nsim').onchange = e => { o.nsim = +e.target.value; schedule(30) };
   $('#sdSys').oninput = e => { o.sdSys = +e.target.value; sync(); schedule() };

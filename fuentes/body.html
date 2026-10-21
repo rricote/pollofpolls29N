@@ -9,6 +9,8 @@
     <label class="fld" for="half"><span class="lbl">Vida media de una encuesta</span><span class="rg"><input id="half" type="range" min="4" max="30" step="1"><output id="halfv" class="big" for="half"></output></span></label>
     <label class="fld" for="variant"><span class="lbl">Microdatos</span><select id="variant"><option value="B">Reponderado por recuerdo de voto</option><option value="C">Reponderado + indecisos por recuerdo</option><option value="A">Bruto, como sale de la encuesta</option></select></label>
     <label class="fld" for="regInt"><span class="lbl">Ajuste regional</span><span class="rg"><input id="regInt" type="range" min="0" max="100" step="5"><output id="regv" class="big" for="regInt"></output></span></label>
+    <fieldset class="fld seg" aria-label="Cómo mostrar Frente Amplio y confluencias"><legend class="lbl">Frente Amplio y confluencias</legend>
+      <span><input type="radio" name="grp" id="g1" value="1"><label for="g1">Agrupados</label><input type="radio" name="grp" id="g0" value="0"><label for="g0">Por separado</label></span></fieldset>
     <fieldset class="fld seg" aria-label="Candidatura de Frente Amplio y Podemos"><legend class="lbl">Frente Amplio y Podemos</legend>
       <span><input type="radio" name="unity" id="u0" value="0"><label for="u0">Por separado</label><input type="radio" name="unity" id="u1" value="1"><label for="u1">Unitaria</label></span></fieldset>
     <label class="fld" for="nsim"><span class="lbl">Simulaciones</span><select id="nsim"><option value="500">500</option><option value="1000">1.000</option><option value="3000">3.000</option></select></label>

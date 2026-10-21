@@ -3,6 +3,8 @@ const KEYS = D.keys, NK = KEYS.length, KI = {};
 KEYS.forEach((k, i) => KI[k] = i);
 const NPAR = 16;                       // partidos que compiten por escaño (0..15); 16 = OTROS, 17 = BLANCO
 const MAIN5 = ['PP', 'PSOE', 'VOX', 'SUMAR', 'PODEMOS'];
+let UNITY_R = 0;
+const FACK = ['SUMAR', 'PODEMOS', 'COMPROMIS', 'UPC', 'ADELANTE'];   // Frente Amplio + confluencias
 const BLOCK = ['ERC', 'JUNTS', 'BILDU', 'PNV', 'BNG', 'CC', 'UPN'];
 const NATIVE = KEYS.map((k, i) => i);
 const MS = 864e5;
@@ -103,9 +105,12 @@ function aggregate(polls, o) {
   T[KI.COMPROMIS] = fa * C.wFA.cv + pod * C.fPod.cv; T[KI.UPC] = fa * C.wFA.can + pod * C.fPod.can;
   T[KI.ERC] += pod * C.fPod.cat; T[KI.SUMAR] = fa * (1 - tr); T[KI.PODEMOS] = pod * (1 - C.fPod.cat - C.fPod.cv - C.fPod.can);
   const tf = { podCat: pod * C.fPod.cat, podCV: pod * C.fPod.cv, podCan: pod * C.fPod.can, faCV: fa * C.wFA.cv, faCan: fa * C.wFA.can };
+  UNITY_R = T[KI.SUMAR] > 0 ? T[KI.PODEMOS] / T[KI.SUMAR] : 0;   // peso del Podemos propio frente a Frente Amplio, para repartir la lista unitaria en provincias
   if (o.unity) {
-    const S = T[KI.SUMAR] + T[KI.PODEMOS], nS = Math.min(0.3, S * o.bonus), f = (1 - nS) / (1 - S);
-    for (let i = 0; i < NK; i++) T[i] *= f; T[KI.SUMAR] = nS; T[KI.PODEMOS] = 0;
+    // las listas donde Podemos/ex-Sumar ya van integrados (ERC, Compromís, UPC) no se ven afectadas por la unidad
+    const FIX = [KI.ERC, KI.COMPROMIS, KI.UPC], fx = FIX.reduce((a, i) => a + T[i], 0);
+    const S = T[KI.SUMAR] + T[KI.PODEMOS], nS = Math.min(0.3, S * o.bonus), f = (1 - nS - fx) / (1 - S - fx);
+    for (let i = 0; i < NK; i++) if (!FIX.includes(i)) T[i] *= f; T[KI.SUMAR] = nS; T[KI.PODEMOS] = 0;
   }
   const tot = T.reduce((a, x) => a + x, 0); for (let i = 0; i < NK; i++) T[i] /= tot;
   // dispersión entre encuestas por partido
@@ -128,6 +133,8 @@ function baseMatrix(o) {
   D.prov.forEach(p => {
     const row = p.sh.slice(), sd = new Array(NK).fill(0.06), sum = p.sh[KI.SUMAR], C = D.cfg;
     row[KI.PODEMOS] = C.regPodemosCoal.includes(p.ccaa) ? 0 : sum; row[KI.SALF] = p.sh[KI.VOX];
+    // lista unitaria: solo se funden Frente Amplio y Podemos donde Podemos concurre aparte; en Cataluña, C. Valenciana y Canarias no cambia nada
+    if (o.unity && !C.regPodemosCoal.includes(p.ccaa)) { row[KI.SUMAR] = (row[KI.SUMAR] + row[KI.PODEMOS] * UNITY_R) * o.bonus; row[KI.PODEMOS] = 0 }
     if (p.ccaa === '10') { row[KI.COMPROMIS] = sum * C.kc; row[KI.SUMAR] = sum * (1 - C.kc) }
     if (p.ccaa === '05') { row[KI.UPC] = sum; row[KI.SUMAR] = 0 }
     if (p.ccaa === '01') row[KI.ADELANTE] = C.andAdelante;
@@ -171,6 +178,7 @@ function simulate(T, o) {
   const seatSim = Array.from({ length: NPAR }, () => new Int16Array(N));
   const shSim = Array.from({ length: NK }, () => new Float32Array(N));
   const grpSim = GRP.map(() => new Int16Array(N));
+  const facSeatSim = new Int16Array(N), facShSim = new Float32Array(N), FAC = FACK.map(k => KI[k]);
   const winCnt = Array.from({ length: NJ }, () => new Float32Array(NPAR));
   const seatMean = Array.from({ length: NJ }, () => new Float32Array(NPAR));
   const shMean = Array.from({ length: NJ }, () => new Float32Array(NK));
@@ -194,6 +202,7 @@ function simulate(T, o) {
     }
     for (let k = 0; k < NPAR; k++) seatSim[k][n] = tot[k];
     const ns = natShare(S); for (let k = 0; k < NK; k++) shSim[k][n] = ns[k];
+    facSeatSim[n] = FAC.reduce((a, i) => a + tot[i], 0); facShSim[n] = FAC.reduce((a, i) => a + ns[i], 0);
     GRP.forEach((g, i) => { let s = 0; g.parties.forEach(k => s += tot[KI[k]]); grpSim[i][n] = s });
   }
   const sum = (arr, p) => { const a = Float64Array.from(arr).sort(); return pct(a, p) };
@@ -202,7 +211,9 @@ function simulate(T, o) {
   for (let k = 0; k < NK; k++) { const a = Float64Array.from(shSim[k]).sort(); share.push({ mean: a.reduce((x, y) => x + y, 0) / N, lo: pct(a, .05), hi: pct(a, .95) }) }
   const groups = GRP.map((g, i) => { const a = Float64Array.from(grpSim[i]).sort(); let c = 0; for (let n = 0; n < N; n++) if (grpSim[i][n] >= 176) c++; return { id: g.id, label: g.label, parties: g.parties, mean: a.reduce((x, y) => x + y, 0) / N, lo: Math.round(pct(a, .05)), hi: Math.round(pct(a, .95)), p176: c / N } });
   for (let j = 0; j < NJ; j++) { for (let k = 0; k < NPAR; k++) { winCnt[j][k] /= N; seatMean[j][k] /= N } for (let k = 0; k < NK; k++) shMean[j][k] /= N }
-  return { cent, centShare: Sc, seats, share, groups, winCnt, seatMean, shMean, hist, N };
+  const fs = Float64Array.from(facSeatSim).sort(), fh = Float64Array.from(facShSim).sort();
+  const facSeats = { mean: fs.reduce((x, y) => x + y, 0) / N, lo: Math.round(pct(fs, .05)), hi: Math.round(pct(fs, .95)), med: Math.round(pct(fs, .5)) }, facShare = { mean: fh.reduce((x, y) => x + y, 0) / N, lo: pct(fh, .05), hi: pct(fh, .95) };
+  return { facSeats, facShare, cent, centShare: Sc, seats, share, groups, winCnt, seatMean, shMean, hist, N };
 }
 function lr(vals, total) { const fl = vals.map(Math.floor); let r = total - fl.reduce((a, b) => a + b, 0); vals.map((v, i) => [v - fl[i], i]).sort((a, b) => b[0] - a[0]).slice(0, r).forEach(([, i]) => fl[i]++); return fl }
 
@@ -213,7 +224,7 @@ function seedPolls() {
   ps.push({ id: 'ceo1169', name: 'CEO 1169 (solo Cataluña)', date: '2026-09-16', n: D.micro.ceo.n, v: {}, q: 1, include: false, src: 'micro', mk: 'ceo', regional: true, note: 'No entra en la media nacional: refuerza los factores de Cataluña' });
   return ps;
 }
-const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.28, sdProv: 0.05, lam: 0.35, house: 1, blockShift: 0, ref: '2026-10-21' };
+const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.28, sdProv: 0.05, lam: 0.35, house: 1, group: true, blockShift: 0, ref: '2026-10-21' };
 
 /* ---- voto necesario para escaño (D'Hondt, resto de partidos escalados en proporción) ---- */
 const _out = new Int16Array(NPAR);
@@ -260,4 +271,12 @@ function chartMain(vec, o) {
   const c = D.cfg; let fa = vec[KI.SUMAR] * (1 - c.wFA.cv - c.wFA.can), po = vec[KI.PODEMOS] * (1 - c.fPod.cat - c.fPod.cv - c.fPod.can);
   if (o.unity) { fa = Math.min(0.3, (fa + po) * o.bonus); po = 0 }
   return { SUMAR: fa, PODEMOS: po };
+}
+
+/* ---- Frente Amplio + confluencias de una encuesta: FA + Podemos propio + Adelante (Compromís y UPC son trozos de FA/Podemos; el Podemos de ERC queda fuera) ---- */
+function facMain(vec, o, adel) {
+  const c = D.cfg; let s = vec[KI.SUMAR] + vec[KI.PODEMOS] * (1 - c.fPod.cat);
+  if (o.unity) s = Math.min(0.3, s * o.bonus);
+  const ad = isFinite(vec[KI.ADELANTE]) ? vec[KI.ADELANTE] : adel;
+  return s + ad;
 }
