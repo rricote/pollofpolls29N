@@ -45,7 +45,7 @@ tot = sum(M['b_reg'][rg]['SUMAR'] * sum(p['valid'] for p in prov if p['ccaa'] ==
 for rg in REGN: sum23[rg] = M['b_reg'][rg]['SUMAR'] * sum(p['valid'] for p in prov if p['ccaa'] == rg) / tot
 SHR = 0.5
 fpod = {rg: round(SHR * M['loc']['PODEMOS'][rg] + (1 - SHR) * sum23[rg], 5) for rg in REGN}
-KC = 0.85                             # parte del espacio ex-Sumar de la Comunitat Valenciana que va en Compromís-Front Valencià
+KC = 1.0                              # parte del espacio ex-Sumar de la Comunitat Valenciana que va en Compromís-Front Valencià
 cfg = {
   'fPod': {'cat': fpod['09'], 'cv': fpod['10'], 'can': fpod['05']},   # Podemos integrado en ERC, Compromís y Unidad del Pueblo Canario
   'wFA': {'cv': round(sum23['10'] * KC, 5), 'can': round(sum23['05'], 5)},  # parte del voto FA(ex-Sumar) que pasa a Compromís y a UPC

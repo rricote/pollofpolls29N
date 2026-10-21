@@ -36,7 +36,9 @@ function view() {            // datos de la portada: con las confluencias agrupa
     F.forEach(i => { if (i !== KI.SUMAR) { T[i] = 0; sh[i] = { ...z }; se[i] = { ...z } } });
     const xs = A.act.map(r => facMain(r.vec, st.o, A.adel)); rng.SUMAR = [Math.min(...xs), Math.max(...xs)];
   }
-  return { T, sh, se, rng, si: lr(se.map(x => x.mean), 350) };
+  const si = seatsInt();      // el redondeo es el de siempre; agrupar solo suma las casillas (así ningún otro partido cambia)
+  if (grp()) { const F = FACI(); si[KI.SUMAR] = F.reduce((a, i) => a + si[i], 0); F.forEach(i => { if (i !== KI.SUMAR) si[i] = 0 }) }
+  return { T, sh, se, rng, si };
 }
 
 function head() {
@@ -222,7 +224,7 @@ const mark = (k, w) => `<span class="sw" style="background:var(--c-${k})"></span
 function present(j, k) {
   const p = D.prov[j], C = D.cfg, K = KEYS[k];
   if (K === 'PODEMOS') return st.A.T[k] > 0 && !C.regPodemosCoal.includes(p.ccaa);   // en Cataluña, C. Valenciana y Canarias va dentro de otras listas
-  if (K === 'SUMAR') return p.ccaa !== '05' && p.sh[k] > 0;                           // en Canarias, dentro de Unidad del Pueblo Canario
+  if (K === 'SUMAR') return p.ccaa !== '05' && p.ccaa !== '10' && p.sh[k] > 0;   // en Canarias y la C. Valenciana va dentro de UPC y Compromís
   if (K === 'ADELANTE') return p.ccaa === '01';
   if (K === 'COMPROMIS') return p.ccaa === '10';
   if (K === 'UPC') return p.ccaa === '05';
