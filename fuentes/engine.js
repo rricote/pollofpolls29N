@@ -12,7 +12,7 @@ function coalShare() {
   D.prov.forEach(p => { const w = p.valid * p.sh[KI.SUMAR] * (p.ccaa === '05' ? 0 : p.ccaa === '10' ? 1 - C.kc : 1); b += w; if (C.regPodemosCoal.includes(p.ccaa)) a += w });
   return _CS = b > 0 ? a / b : 0;
 }
-const FACK = ['SUMAR', 'COMPROMIS', 'UPC', 'ADELANTE'];   // Frente Amplio + confluencias
+const FACK = ['SUMAR', 'COMPROMIS', 'UPC'];   // Frente Amplio + confluencias
 const BLOCK = ['ERC', 'JUNTS', 'BILDU', 'PNV', 'BNG', 'CC', 'UPN'];
 const NATIVE = KEYS.map((k, i) => i);
 const MS = 864e5;
@@ -231,12 +231,13 @@ function lr(vals, total) { const fl = vals.map(Math.floor); let r = total - fl.r
 
 function seedPolls() {
   const ps = D.polls.map(p => ({ ...p, v: { ...p.v } }));
-  ps.push({ id: 'cis3577', name: 'CIS 3577 (microdatos)', date: '2026-09-03', n: D.micro.cis.n, v: {}, q: 1, include: true, src: 'micro', mk: 'cis', note: 'Barómetro de septiembre; reponderado por recuerdo de voto 2023' });
+  ps.push({ id: 'cis3577', name: 'CIS 3577 (microdatos)', date: '2026-09-03', n: D.micro.cis9.n, v: {}, q: 1, include: true, src: 'micro', mk: 'cis9', note: 'Barómetro de septiembre (campo 1-4 sep); reponderado por recuerdo de voto 2023' });
+  ps.push({ id: 'cis3582', name: 'CIS 3582 (microdatos)', date: '2026-10-06', n: D.micro.cis.n, v: {}, q: 1, include: true, src: 'micro', mk: 'cis', note: 'Barómetro de octubre (campo 1-6 oct); reponderado por recuerdo de voto 2023' });
   ps.push({ id: 'd40flash', name: '40dB flash (microdatos)', date: '2026-10-08', n: D.micro.d40.n, v: {}, q: 1, include: true, src: 'micro', mk: 'd40', note: 'Flash 7-8 oct; sin Ceuta y Melilla' });
   ps.push({ id: 'ceo1169', name: 'CEO 1169 (solo Cataluña)', date: '2026-09-16', n: D.micro.ceo.n, v: {}, q: 1, include: false, src: 'micro', mk: 'ceo', regional: true, note: 'No entra en la media nacional: refuerza los factores de Cataluña' });
   return ps;
 }
-const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.28, sdProv: 0.05, lam: 0.35, house: 1, group: true, blockShift: 0, ref: '2026-10-21' };
+const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.28, sdProv: 0.05, lam: 0.35, house: 1, group: true, blockShift: 0, ref: '2026-11-05' };
 
 /* ---- voto necesario para escaño (D'Hondt, resto de partidos escalados en proporción) ---- */
 const _out = new Int16Array(NPAR);
@@ -285,10 +286,9 @@ function chartMain(vec, o) {
   return { SUMAR: fa, PODEMOS: po };
 }
 
-/* ---- Frente Amplio + confluencias de una encuesta: FA + Podemos propio + Adelante (Compromís y UPC son trozos de FA/Podemos; el Podemos de ERC queda fuera) ---- */
+/* ---- Frente Amplio + confluencias de una encuesta: Frente Amplio con Compromís y UPC (trozos del voto de FA); Podemos y Adelante Andalucía quedan fuera ---- */
 function facMain(vec, o, adel) {
   let s = vec[KI.SUMAR];
   if (o.unity) { const c = D.cfg, sc = s * coalShare(), po = vec[KI.PODEMOS] * (1 - c.fPod.cat - c.fPod.cv - c.fPod.can); s = Math.min(0.3, sc + (s + po - sc) * o.bonus) }
-  const ad = isFinite(vec[KI.ADELANTE]) ? vec[KI.ADELANTE] : adel;
-  return s + ad;
+  return s;
 }

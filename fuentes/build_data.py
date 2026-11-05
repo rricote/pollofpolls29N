@@ -80,10 +80,10 @@ s23 = D['base']['seats']; seats2023 = s23[:13] + [0, 0, 0] + s23[13:]
 out = {
  'keys': KEYS, 'parties': parties, 'prov': prov, 'seats2023': seats2023,
  'nat2023': nat23, 'regn': REGN, 'fac': fac, 'tau': M['tau'], 'nreg': M['n_reg'],
- 'micro': {'cis': micro('cis'), 'd40': micro('d40'), 'ceo': micro('ceo')},
+ 'micro': {'cis': micro('cis'), 'cis9': micro('cis9'), 'd40': micro('d40'), 'ceo': micro('ceo')},
  'grupos': grupos, 'cfg': cfg, 'polls': polls_build.polls,
  'cat2023': exd(M['b_reg']['09']),
- 'ver': '3',
+ 'ver': '6-20261105',
 }
 s = json.dumps(out, ensure_ascii=False, separators=(',', ':'))
 open(HERE + 'data.js', 'w', encoding='utf-8').write('const D=' + s + ';\n')

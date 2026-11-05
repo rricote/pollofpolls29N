@@ -1,4 +1,4 @@
-"""Estimaciones desde microdatos (CIS 3577, 40dB flash octubre, CEO 1169) para el poll of polls.
+"""Estimaciones desde microdatos (CIS 3582, 40dB flash octubre, CEO 1169) para el poll of polls.
 Variantes por encuesta:
   A = bruto: intención directa + simpatía entre quienes mencionan partido, pesos publicados.
   B = reponderado por recuerdo de voto 2023 (con ponderación suave por probabilidad de votar).
@@ -77,37 +77,43 @@ def shares(df, w, vote_col, unc_col=None, rec_col=None, impute=0.0, keys=KEYS):
             s = s.add(rs.reindex(keys, fill_value=0.0)*ww[idx].sum()*impute, fill_value=0)
     return s/s.sum(), kish(ww[dec])
 
-# ---------- CIS 3577 ----------
-cis = pd.read_csv(UP+'CIS 3577/3577_num.csv', sep=';', encoding='utf-8-sig', low_memory=False)
-cis.columns = [c.split(':')[0] for c in cis.columns]
-cis = cis.copy()
-cis_party = {1:'PSOE',2:'PP',3:'VOX',21:'SUMAR',8:'PODEMOS',28:'SALF',901:'ERC',902:'JUNTS',1602:'BILDU',1601:'PNV',
-             1201:'BNG',503:'CC',1501:'UPN',6:'OTROS',101:'ADELANTE',8995:'OTROS',8996:'BLANCO',29:'COAL'}
-def cis_vote(r):
-    a = r.INTENCIONGR
-    if a in cis_party: return cis_party[a]
-    if a in (9998, 9999):
+# ---------- CIS 3582 (barómetro de octubre, campo 1-6 oct) ----------
+def prep_cis(path):
+    cis = pd.read_csv(path, sep=';', encoding='utf-8-sig', low_memory=False)
+    cis.columns = [c.split(':')[0] for c in cis.columns]
+    cis = cis.copy()
+    cis_party = {1:'PSOE',2:'PP',3:'VOX',21:'SUMAR',8:'PODEMOS',28:'SALF',901:'ERC',902:'JUNTS',1602:'BILDU',1601:'PNV',
+                 1201:'BNG',503:'CC',1501:'UPN',6:'OTROS',101:'ADELANTE',8995:'OTROS',8996:'BLANCO',29:'COAL',
+                 9:'SUMAR',1001:'SUMAR',5:'OTROS',915:'OTROS'}   # simpatía: IU y Compromís dentro del espacio Frente Amplio
+    def cis_vote(r):
+        a = r.INTENCIONGR
+        if a in cis_party: return cis_party[a]
+        if a in (9998, 9999):
+            s = r.SIMPATIAR
+            if s in cis_party: return cis_party[s]
+            return 'UND'
         s = r.SIMPATIAR
-        if s in cis_party: return cis_party[s]
-        return 'UND'
-    s = r.SIMPATIAR
-    if a == 9997 and s in cis_party: return cis_party[s]   # ninguno de forma directa, simpatiza con partido
-    return None
-cis['vote'] = cis.apply(cis_vote, axis=1)
-# coalición de izquierdas (29) -> reparto proporcional Sumar / Podemos
-coal = cis.vote == 'COAL'
-cis.loc[coal, 'vote'] = np.where(np.random.default_rng(1).random(coal.sum()) < 0.67, 'SUMAR', 'PODEMOS')
-rec_map = {1:'PSOE',2:'PP',3:'VOX',21:'SUMAR',901:'ERC',902:'JUNTS',1602:'BILDU',1601:'PNV',1201:'BNG',503:'CC',1501:'UPN',
-           6:'OTROS',8995:'OTROS',8996:'BN',9977:'BN',9997:'ABST'}
-cis['rec'] = cis.RECUERDO.map(rec_map).fillna('NA')
-cis['prop'] = cis.PROBVOTO.map(lambda x: 0.5 if x in (98, 99) else x/10)
-cis['reg'] = cis.CCAA.astype(int).map(lambda x: f'{x:02d}')
-cis['w0'] = cis.PESO.astype(str).str.replace(',','.').astype(float)
-tg = {r: targets([r]) for r in reg.index}
-cis['wB'] = rake(cis, 'reg', 'w0', 'rec', tg)
-cis['wBp'] = cis.wB*cis.prop
-cis['wAp'] = cis.w0
+        if a == 9997 and s in cis_party: return cis_party[s]   # ninguno de forma directa, simpatiza con partido
+        return None
+    cis['vote'] = cis.apply(cis_vote, axis=1)
+    # coalición de izquierdas (29) -> reparto proporcional Sumar / Podemos
+    coal = cis.vote == 'COAL'
+    cis.loc[coal, 'vote'] = np.where(np.random.default_rng(1).random(coal.sum()) < 0.67, 'SUMAR', 'PODEMOS')
+    rec_map = {1:'PSOE',2:'PP',3:'VOX',21:'SUMAR',901:'ERC',902:'JUNTS',1602:'BILDU',1601:'PNV',1201:'BNG',503:'CC',1501:'UPN',
+               6:'OTROS',8995:'OTROS',8996:'BN',9977:'BN',9997:'ABST'}
+    cis['rec'] = cis.RECUERDO.map(rec_map).fillna('NA')
+    cis['prop'] = cis.PROBVOTO.map(lambda x: 0.5 if x in (98, 99) else x/10)
+    cis['reg'] = cis.CCAA.astype(int).map(lambda x: f'{x:02d}')
+    cis['w0'] = cis.PESO.astype(str).str.replace(',','.').astype(float)
+    tg = {r: targets([r]) for r in reg.index}
+    cis['wB'] = rake(cis, 'reg', 'w0', 'rec', tg)
+    cis['wBp'] = cis.wB*cis.prop
+    cis['wAp'] = cis.w0
+    return cis
 
+tg = {r: targets([r]) for r in reg.index}
+cis = prep_cis(UP+'MD3582/3582_num.csv')
+cis9 = prep_cis(UP+'CIS 3577/3577_num.csv')
 def micro_variants(df, wA, wB, vote_col='vote', rec_col='rec'):
     A, nA = shares(df, wA, vote_col)
     B, nB = shares(df, wB, vote_col)
@@ -116,9 +122,12 @@ def micro_variants(df, wA, wB, vote_col='vote', rec_col='rec'):
 
 A, B, C, nA, nB, nC = micro_variants(cis, cis.wAp, cis.wBp)
 print('CIS A', (A*100).round(1).to_dict()); print('CIS B', (B*100).round(1).to_dict()); print('CIS C', (C*100).round(1).to_dict())
-res = {'cis': {'id':'CIS 3577','n':int(len(cis)),'field':'2026-09-02','nA':nA,'nB':nB,
+res = {'cis': {'id':'CIS 3582','n':int(len(cis)),'field':'2026-10-06','nA':nA,'nB':nB,
                'A':A.round(5).to_dict(),'B':B.round(5).to_dict(),'C':C.round(5).to_dict()}}
 
+A9, B9, C9, nA9, nB9, nC9 = micro_variants(cis9, cis9.wAp, cis9.wBp)
+print('CIS sept B', (B9*100).round(1).to_dict())
+res['cis9'] = {'id':'CIS 3577','n':int(len(cis9)),'field':'2026-09-02','nA':nA9,'nB':nB9,'A':A9.round(5).to_dict(),'B':B9.round(5).to_dict(),'C':C9.round(5).to_dict()}
 # regional shares (variant B) CIS
 cis_reg = {}
 for rg, sub in cis.groupby('reg'):

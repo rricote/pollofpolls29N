@@ -35,8 +35,8 @@ BR = 'Brújula 29N (datos abiertos)'
 # --- Brújula 29N, encuestas.json (14-oct-2026): fecha = fin de campo ---
 add('GAD3 / ABC', '2026-10-08', 1077, V(31.4, 26.4, 18.2, 7.4, 2.3, 1.8, ERC=2.6, JUNTS=1.5, BILDU=1.5, PNV=1.0, BNG=0.9, CC=0.4, UPN=0.1), note=BR)
 add('GESOP / El Periódico', '2026-10-08', 1000, V(28.7, 26.1, 18.9, 8.0, 2.6, 2.0, ERC=2.5, JUNTS=1.9), q=0.6, note=BR + '. Mezcla escenarios (FA y Podemos por separado según la casa); PP aportado solo por agregadores')
-add('SocioMétrica / El Español', '2026-10-11', 1000, V(32.6, 26.2, 18.8, 4.9, 2.8, 2.1, ERC=2.0, JUNTS=1.5, BILDU=1.3, PNV=0.8, BNG=0.9, CC=0.5, UPN=0.2, ADELANTE=0.9), note=BR + '. FA 5,8 en otros agregadores')
-add('EM-Analytics / Electomanía', '2026-10-03', 8171, V(31.3, 26.9, 19.4, 5.2, 3.4, 1.7, ERC=2.0, JUNTS=1.1, BILDU=1.4, PNV=1.1, BNG=1.0, CC=0.3, UPN=0.2), note=BR + '. Panel online autoseleccionado')
+add('SocioMétrica / El Español', '2026-10-11', 1000, V(32.6, 26.2, 18.8, 5.8, 2.8, 2.1, ERC=2.0, JUNTS=1.5, BILDU=1.3, PNV=0.8, BNG=0.9, CC=0.5, UPN=0.2, ADELANTE=0.9), note=BR + '. FA 5,8 en otros agregadores')
+add('EM-Analytics / Electomanía', '2026-10-03', 8171, V(31.3, 26.9, 19.4, 6.3, 3.4, 1.7, ERC=2.0, JUNTS=1.1, BILDU=1.4, PNV=1.1, BNG=1.0, CC=0.3, UPN=0.2), note=BR + '. Panel online autoseleccionado')
 add('Data10 / OKdiario', '2026-10-02', 1000, V(34.0, 26.1, 18.6, 5.2, 4.3, 1.4, ERC=1.9, JUNTS=1.5, BILDU=1.4, PNV=0.8, BNG=1.0, CC=0.3, UPN=0.2), note=BR)
 add('SocioMétrica / El Español', '2026-10-03', 1000, V(33.4, 26.5, 18.1, 5.3, 3.1, 2.2, ERC=2.2, JUNTS=1.2, BILDU=1.3, PNV=1.0, BNG=0.9, CC=0.6, UPN=0.2), note=BR)
 add('Sigma Dos / El Mundo', '2026-10-01', 2116, V(32.6, 25.6, 18.3, 6.6, 3.3, None, ERC=2.5, JUNTS=1.1, BILDU=1.3, PNV=1.0, BNG=0.9, CC=0.5, UPN=0.2), note=BR + '. Campo 22 sep-1 oct')
@@ -63,8 +63,27 @@ add('InvyMark / laSexta', '2026-09-11', 1200, V(33.7, 26.8, 18.6, 6.1, 3.3), q=0
 add('Celeste-Tel / Onda Cero', '2026-09-21', 1100, V(33.9, 25.4, 17.8, 6.4, 3.3), q=0.8, note='Agregadores; electografica solo recoge una de septiembre de 2025, revisar')
 add('EM-Analytics / Electomanía', '2026-09-25', 1104, V(32.3, 25.3, 18.8, 6.5, 3.8), note='Agregadores (Brújula 29N)')
 # --- nuevas hasta el 21-oct ---
-add('EM-Analytics / Electomanía', '2026-10-17', 3141, V(31.8, 27.1, 18.9, 4.9, 2.0, 1.7, JUNTS=1.2, BILDU=1.4, PNV=1.0, BNG=1.0, CC=0.3, ERC=2.1, ADELANTE=1.1), note='Fuente primaria (ElectoPanel, 15-17 oct); ERC y SALF solo de agregador')
-add('Sigma Dos / El Mundo', '2026-10-14', 3007, V(31.5, 25.3, 19.5, 7.2, 2.8, None, ERC=2.5, JUNTS=1.2, BILDU=1.2, PNV=0.9, BNG=0.8, CC=0.5, UPN=0.2, ADELANTE=0.8), note='Campo 1-14 oct, publicada el 19. Agregadores (electografica y electomanía). Sustituye a la entrega parcial del 11-oct (PP 31,9 / PSOE 25,3 / Vox 19,1 / FA 7,6), que comparte entrevistas')
+add('EM-Analytics / Electomanía', '2026-10-17', 3141, V(31.8, 27.1, 18.9, 6.2, 2.0, 1.7, JUNTS=1.2, BILDU=1.4, PNV=1.0, BNG=1.0, CC=0.3, ERC=2.1, ADELANTE=1.1), note='Fuente primaria (ElectoPanel, 15-17 oct); ERC y SALF solo de agregador')
+add('Sigma Dos / El Mundo', '2026-10-14', 3007, V(31.5, 25.3, 19.5, 8.1, 2.8, None, ERC=2.5, JUNTS=1.2, BILDU=1.2, PNV=0.9, BNG=0.8, CC=0.5, UPN=0.2, ADELANTE=0.8), note='Campo 1-14 oct, publicada el 19. Agregadores (electografica y electomanía). Sustituye a la entrega parcial del 11-oct (PP 31,9 / PSOE 25,3 / Vox 19,1 / FA 7,6), que comparte entrevistas')
+# --- nuevas 22-oct a 5-nov: fuentes electografica.com (agregador fiable), eleccionesenespana.es y prensa ---
+# «Frente Amplio» = FA + Compromís-FV + UPC (el espacio ex-Sumar completo); en las filas anteriores de Brújula se corrigió así donde la fuente lo permitía
+FAN = 'FA incluye Compromís-FV y UPC'
+add('IMOP Insights / El Confidencial', '2026-10-16', 1000, V(28.5, 27.1, 20.0, 8.9, 1.9, 1.2, ERC=2.2, JUNTS=1.2, BILDU=1.3, PNV=1.0), note='Campo 13-16 oct. ' + FAN)
+add('Sigma Dos / El Mundo', '2026-10-22', 3122, V(30.6, 26.1, 19.9, 8.2, 2.8, None, ERC=2.5, JUNTS=1.2, BILDU=1.2, PNV=0.9, CC=0.4), q=0.7, note='Campo 8-22 oct, publicada el 26; comparte entrevistas con la de 1-14 oct. ' + FAN)
+add('Ateneo del Dato / elDiario.es', '2026-10-22', 1500, V(31.1, 27.6, 19.8, 6.8, 2.7), q=0.8, note='Campo 20-22 oct. Muestra no indicada (se supone 1.500 como la anterior)')
+add('Winston / Artículo14', '2026-10-23', 1200, {'PP': 29.4, 'PSOE': 27.1, 'VOX': 19.2, 'FA': 5.6}, inc=False, note='Campo 21-23 oct. No publica Podemos, no puede entrar en la media')
+add('EM-Analytics / Electomanía', '2026-10-23', 4309, V(30.9, 26.7, 19.0, 7.0, 1.7, None, ERC=2.2, JUNTS=1.3, BILDU=1.4, PNV=1.0), q=0.85, note='ElectoPanel 17-23 oct. Panel online. Comparte parte del campo con el del 15-17 oct')
+add('NC Report / La Razón', '2026-10-24', 1000, V(33.1, 25.8, 19.0, 6.6, 2.6, None, ERC=2.0, JUNTS=1.8, BILDU=1.4, PNV=0.9, ADELANTE=1.3), note='Campo 22-24 oct. ' + FAN)
+add('More in Common', '2026-10-25', 2210, V(28.3, 27.6, 20.8, 7.8, 2.6, 2.4), note='Campo 21-25 oct, panel online (Pulso electoral). ' + FAN)
+add('SocioMétrica / El Español', '2026-10-25', 3223, V(32.4, 27.0, 18.6, 6.1, 1.8, 2.4, ERC=2.6, JUNTS=1.7, BILDU=1.3, PNV=0.8, BNG=0.9, CC=0.4, ADELANTE=1.2), q=0.6, note='Campo acumulado 1 sep-25 oct (panel online); FA 4,9 + Compromís 0,9 + UPC 0,3. Comparte entrevistas con las demás de SocioMétrica')
+add('Sondaxe / La Voz de Galicia', '2026-10-28', 1200, V(29.2, 26.9, 19.2, 7.2, 2.0, 2.4, ERC=2.6, JUNTS=1.3, BILDU=1.4, PNV=0.9, BNG=0.9, CC=0.3, ADELANTE=2.0), note='Campo 26-28 oct. ' + FAN)
+add('Hamalgama Métrica / Vozpópuli', '2026-10-28', 1000, V(32.4, 26.4, 19.9, 5.4, 2.2, 1.8, ERC=1.9, JUNTS=1.7, BILDU=1.3, PNV=0.9, BNG=0.8, CC=0.0, UPN=0.2, ADELANTE=1.1), note='Campo 22-28 oct. ' + FAN)
+add('NC Report / La Razón', '2026-10-29', 1000, V(33.0, 25.6, 19.3, 6.9, 2.4, None, ERC=2.0, JUNTS=1.8, BILDU=1.4, PNV=0.9, BNG=0.8, CC=0.4, ADELANTE=1.2), note='Campo 26-29 oct. ' + FAN)
+add('Target Point / El Debate', '2026-10-30', 1024, V(31.8, 25.5, 19.9, 6.6, 2.4, 2.6), note='Campo 28-30 oct. ' + FAN)
+add('EM-Analytics / Electomanía', '2026-10-30', 1527, V(31.5, 25.8, 19.2, 6.2, 1.7, None, ERC=2.2, JUNTS=1.2, BILDU=1.4, PNV=0.9), q=0.85, note='ElectoPanel 28-30 oct (publicado el 1 nov). Panel online')
+add('Sigma Dos / El Mundo', '2026-10-30', 2505, V(31.1, 24.6, 19.3, 8.4, 1.9, None, ERC=3.0, JUNTS=1.1, BILDU=1.3, PNV=0.9, BNG=1.0, CC=0.4, UPN=0.2, ADELANTE=1.4), note='Campo 29-30 oct (tras el accidente de Urda), publicada el 1 nov; FA 7,1 + Compromís 0,9 + UPC 0,4')
+add('SocioMétrica / El Español', '2026-11-01', 4893, V(32.7, 26.6, 19.1, 6.1, 1.7, 2.5, ERC=2.5, JUNTS=1.4, BILDU=1.4, PNV=0.8), q=0.6, note='Campo acumulado 1 sep-1 nov. FA 5,2-6,1 según la fuente (se usa 6,1). Comparte entrevistas con las demás de SocioMétrica')
+add('The Objective (sondeo interno de Vox)', '2026-10-27', 1500, V(28.1, 29.6, 20.2, 6.2, 1.9), q=0.3, inc=False, note='Sondeo interno de Vox filtrado; Vox lo ha desmentido. No es una encuesta publicada: desactivada')
 # --- histórico: electografica.com (agregador) ---
 def have(name, date): return any(p['name'] == canon(name) and p['date'] == date for p in polls)
 SKIP = set()
