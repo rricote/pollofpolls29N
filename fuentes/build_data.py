@@ -83,7 +83,7 @@ out = {
  'micro': {'cis': micro('cis'), 'cis9': micro('cis9'), 'd40': micro('d40'), 'ceo': micro('ceo')},
  'grupos': grupos, 'cfg': cfg, 'polls': polls_build.polls,
  'cat2023': exd(M['b_reg']['09']),
- 'ver': '6-20261105',
+ 'ver': '7-20261109',
 }
 s = json.dumps(out, ensure_ascii=False, separators=(',', ':'))
 open(HERE + 'data.js', 'w', encoding='utf-8').write('const D=' + s + ';\n')

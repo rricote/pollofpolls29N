@@ -84,6 +84,13 @@ add('EM-Analytics / Electomanía', '2026-10-30', 1527, V(31.5, 25.8, 19.2, 6.2, 
 add('Sigma Dos / El Mundo', '2026-10-30', 2505, V(31.1, 24.6, 19.3, 8.4, 1.9, None, ERC=3.0, JUNTS=1.1, BILDU=1.3, PNV=0.9, BNG=1.0, CC=0.4, UPN=0.2, ADELANTE=1.4), note='Campo 29-30 oct (tras el accidente de Urda), publicada el 1 nov; FA 7,1 + Compromís 0,9 + UPC 0,4')
 add('SocioMétrica / El Español', '2026-11-01', 4893, V(32.7, 26.6, 19.1, 6.1, 1.7, 2.5, ERC=2.5, JUNTS=1.4, BILDU=1.4, PNV=0.8), q=0.6, note='Campo acumulado 1 sep-1 nov. FA 5,2-6,1 según la fuente (se usa 6,1). Comparte entrevistas con las demás de SocioMétrica')
 add('The Objective (sondeo interno de Vox)', '2026-10-27', 1500, V(28.1, 29.6, 20.2, 6.2, 1.9), q=0.3, inc=False, note='Sondeo interno de Vox filtrado; Vox lo ha desmentido. No es una encuesta publicada: desactivada')
+# --- nuevas 6-9 nov: electografica.com, eleccionesenespana.es, prensa ---
+add('Celeste-Tel / Onda Cero', '2026-11-03', 1100, V(31.8, 25.7, 19.2, 8.0, 1.9, 1.6, ERC=2.2, JUNTS=1.5, BILDU=1.4, PNV=0.9, BNG=0.8, CC=0.5, UPN=0.0, ADELANTE=1.2), note='Campo 29 oct-3 nov, publicada el 6 nov; FA 6,8 + Compromís 1,2 (UPC no desglosada)')
+add('Sondaxe / La Voz de Galicia', '2026-11-04', 1200, V(29.7, 27.3, 18.6, 7.1, 2.2, 1.6, ERC=2.9, JUNTS=1.4, BILDU=1.5, PNV=0.7, BNG=0.9, CC=0.5, ADELANTE=2.3), note='Campo 2-4 nov, publicada el 8 nov. ' + FAN)
+add('Ateneo del Dato / elDiario.es', '2026-11-05', 2000, V(31.5, 28.6, 18.6, 6.1, 1.5), q=0.8, note='Campo 2-5 nov, publicada el 8 nov. Solo datos de los cinco primeros partidos. ' + FAN)
+add('IMOP Insights / El Confidencial', '2026-11-06', 1000, V(29.8, 25.9, 19.9, 8.1, 1.2, 1.7, ERC=2.6, JUNTS=1.2, BILDU=1.6, PNV=0.7, BNG=1.3, CC=0.5, ADELANTE=1.8), note='Campo 2-6 nov, publicada el 8 nov. ' + FAN)
+add('EM-Analytics / Electomanía', '2026-11-06', 1860, V(31.1, 25.3, 19.2, 7.6, 1.8), q=0.85, note='ElectoPanel 6 nov (panel online). Solo cinco primeros partidos. ' + FAN)
+add('SW Demoscopia / La Séptima', '2026-11-06', 4500, V(28.8, 30.8, 17.2, 7.7, 1.8, 2.1, ERC=2.5, JUNTS=1.2, BILDU=1.3, PNV=0.8, BNG=0.9, CC=0.4, ADELANTE=1.5), q=0.8, note='Tracking diario móvil 26 oct-6 nov (telefónica); comparte entrevistas con sus entregas anteriores, solo se usa la última. Casa nueva y atípica (PSOE primero). ' + FAN)
 # --- histórico: electografica.com (agregador) ---
 def have(name, date): return any(p['name'] == canon(name) and p['date'] == date for p in polls)
 SKIP = set()

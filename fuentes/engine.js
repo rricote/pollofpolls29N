@@ -237,7 +237,7 @@ function seedPolls() {
   ps.push({ id: 'ceo1169', name: 'CEO 1169 (solo Cataluña)', date: '2026-09-16', n: D.micro.ceo.n, v: {}, q: 1, include: false, src: 'micro', mk: 'ceo', regional: true, note: 'No entra en la media nacional: refuerza los factores de Cataluña' });
   return ps;
 }
-const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.28, sdProv: 0.05, lam: 0.35, house: 1, group: true, blockShift: 0, ref: '2026-11-05' };
+const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.28, sdProv: 0.05, lam: 0.35, house: 1, group: true, blockShift: 0, ref: '2026-11-09' };
 
 /* ---- voto necesario para escaño (D'Hondt, resto de partidos escalados en proporción) ---- */
 const _out = new Int16Array(NPAR);
