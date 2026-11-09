@@ -53,6 +53,13 @@
     </div>
   </section>
 
+  <section class="card">
+    <h2>El último escaño de cada provincia</h2>
+    <p class="note">El último escaño repartido fija la barrera efectiva: su cociente D'Hondt es el voto provincial que haría falta para llevárselo. El margen es la distancia (en puntos de cociente) con el primer partido que se queda fuera: cuanto menor, más disputado. Pulsa una provincia para ver su detalle.</p>
+    <div class="sortb" id="lssort" role="group" aria-label="Ordenar"><button type="button" class="chip" data-s="margin" aria-pressed="true">Más ajustado</button><button type="button" class="chip" data-s="price" aria-pressed="false">Barrera</button><button type="button" class="chip" data-s="name" aria-pressed="false">A-Z</button></div>
+    <div class="tw tall"><table class="pt mt" id="lstab"></table></div>
+  </section>
+
   </div>
 
   <div class="panel" id="p-provincias" role="tabpanel" aria-labelledby="tab-provincias" hidden>
@@ -66,8 +73,8 @@
     <section class="card pd" id="pd"></section>
   </div>
   <section class="card">
-    <h2>Barrera electoral efectiva por provincia</h2>
-    <p class="note">Voto provincial que necesitaría un partido nuevo para sacar el primer escaño, con los demás partidos reducidos en proporción (D'Hondt, escenario central). Se muestra la barrera real sin aplicar el 3 % legal: en Madrid y Barcelona queda por debajo de la línea de puntos, es decir, el 3 % es lo que de verdad les exige la ley. Arriba del todo, los escaños de la provincia; sobre cada barra, su barrera en %. Ceuta y Melilla (un escaño, barrera de 26 % y 31 %) no se muestran. Pulsa una barra para ver la provincia.</p>
+    <h2>Barrera electoral efectiva: el cociente del último escaño</h2>
+    <p class="note">Cociente D'Hondt del último escaño repartido en cada provincia (escenario central): el voto provincial que necesita un partido para llevárselo, con el resto de votos sin cambios. Es la barrera real sin aplicar el 3 % legal: donde queda por debajo de la línea de puntos (Madrid, Barcelona…) manda el 3 %. Arriba, los escaños de la provincia; sobre cada barra, su barrera en %. Ceuta y Melilla (un escaño) no se muestran. Pulsa una barra para ver la provincia.</p>
     <div class="tw"><svg id="thr" role="img" aria-label="Barrera electoral efectiva por provincia"></svg></div>
   </section>
   </div>
@@ -92,6 +99,11 @@
       <p class="note" id="pnote" style="margin:10px 0 0"></p>
     </section>
   </div>
+  <section class="card">
+    <h2>A cuánto está de un escaño más</h2>
+    <p class="note" id="nxn"></p>
+    <div class="tw tall"><table class="pt mt" id="nxtab"></table></div>
+  </section>
   </div>
 
   <div class="panel" id="p-encuestas" role="tabpanel" aria-labelledby="tab-encuestas" hidden>

@@ -20,7 +20,7 @@ function compute() {
 }
 function renderAll() {
   const { A, S } = st; if (!A || !S) return;
-  head(); votes(); chips(); chart(); seats(); groups(); provPage(); partyPage(); weights(); micro();
+  head(); votes(); chips(); chart(); seats(); groups(); provPage(); partyPage(); lastPage(); weights(); micro();
   $('#pill').textContent = 'Poll of polls · ' + new Date(st.o.ref + 'T12:00:00Z').toLocaleDateString('es-ES', { day: 'numeric', month: 'long', timeZone: 'UTC' });
 }
 function seatsInt() { return lr(st.S.seats.map(x => x.mean), 350) }
@@ -231,17 +231,21 @@ function present(j, k) {
   return p.sh[k] > 0 || (K === 'SALF' && st.A.T[k] > 0);
 }
 const NC = {};
+/* con las confluencias agrupadas, la lista del espacio Frente Amplio de cada provincia (Frente Amplio, Compromís o UPC) se muestra como una sola: «Frente Amplio + confluencias» */
+const hid = k => grp() && (k === KI.COMPROMIS || k === KI.UPC);
+const gi = k => hid(k) ? KI.SUMAR : k;
+const SRC = (j, k) => { if (!grp() || k !== KI.SUMAR) return k; const cc = D.prov[j].ccaa; return cc === '10' ? KI.COMPROMIS : cc === '05' ? KI.UPC : k };
 function need(j, k) {
-  const key = j + '_' + k; if (NC[key]) return NC[key];
-  const { S } = st, row = S.centShare[j], seats = D.prov[j].seats, c = S.cent[j][k], share = row[k], ok = present(j, k) && st.A.T[k] > 0;
+  const key = j + '_' + k + (grp() ? 'g' : ''); if (NC[key]) return NC[key];
+  const kk = SRC(j, k), { S } = st, row = S.centShare[j], seats = D.prov[j].seats, c = S.cent[j][kk], share = row[kk], ok = present(j, kk) && st.A.T[kk] > 0;
   const r = { ok, c, share, seats };
-  if (ok) { r.n1 = needShare(row, k, seats, 1); r.nx = c + 1 <= seats ? needShare(row, k, seats, c + 1) : null; r.hs = histStats(S.hist[j][k], S.N) }
+  if (ok) { r.n1 = needShare(row, kk, seats, 1); r.nx = c + 1 <= seats ? needShare(row, kk, seats, c + 1) : null; r.hs = histStats(S.hist[j][kk], S.N) }
   return NC[key] = r;
 }
 
 function thrChart() {
   const { S } = st, svg = $('#thr'); if (!svg) return;
-  const L = D.prov.map((p, j) => ({ p, j, e: effThreshold(S.centShare[j], p.seats, true) })).filter(x => x.e !== null && x.p.id !== '51' && x.p.id !== '52').map(x => ({ ...x, v: x.e }));
+  const L = D.prov.map((p, j) => ({ p, j, e: lastSeat(S.centShare[j], p.seats).price })).filter(x => x.e > 0 && x.p.id !== '51' && x.p.id !== '52').map(x => ({ ...x, v: x.e }));
   L.sort((a, b) => a.v - b.v || b.p.seats - a.p.seats);
   const SHORT = { 'Santa Cruz de Tenerife': 'S.C. Tenerife', 'Castelló/Castellón': 'Castelló', 'Alacant/Alicante': 'Alicante', 'València/Valencia': 'València', 'Araba/Álava': 'Araba', 'Illes Balears': 'Baleares' }, nm = p => SHORT[p.name] || p.name;
   const n = L.length, W = Math.max(900, n * 26 + 66), H = 410, m = { l: 56, r: 10, t: 44, b: 96 };
@@ -252,7 +256,7 @@ function thrChart() {
   for (let v = 0; v <= top + 1e-9; v += st1) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--rule)"/><text x="${m.l - 7}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${Math.round(v * 100)}%</text>`;
   L.forEach((x, i) => {
     const cx = m.l + bw * (i + .5), h = Y(0) - Y(x.v), sel = x.p.id === st.sel, atFloor = x.e <= 0.03;
-    s += `<g data-id="${x.p.id}" class="thrb" tabindex="0" role="button" aria-label="${esc(x.p.name)}: ${x.p.seats} escaños, barrera efectiva ${fmt(x.v)}"><title>${esc(x.p.name)} · ${x.p.seats} escaños · barrera efectiva ${fmt(x.v)}${atFloor ? ' (manda el 3 % legal)' : ''}</title>
+    s += `<g data-id="${x.p.id}" class="thrb" tabindex="0" role="button" aria-label="${esc(x.p.name)}: ${x.p.seats} escaños, barrera efectiva ${fmt(x.v)}"><title>${esc(x.p.name)} · ${x.p.seats} escaños · último escaño a ${fmt(x.v)}${atFloor ? ' (manda el 3 % legal)' : ''}</title>
       <rect x="${cx - bw * .36}" y="${Y(x.v)}" width="${bw * .72}" height="${h}" rx="2" fill="${atFloor ? 'var(--faint)' : 'var(--focus)'}" fill-opacity="${sel ? 1 : .72}"${sel ? ' stroke="var(--ink)" stroke-width="1.5"' : ''}/>
       <rect x="${cx - bw / 2}" y="${m.t - 16}" width="${bw}" height="${H - m.t - m.b + 16 + 90}" fill="transparent"/>
       <text x="${cx}" y="${m.t - 20}" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--ink)">${x.p.seats}</text><text x="${cx}" y="${Y(x.v) - 5}" text-anchor="middle" font-size="10" fill="var(--ink)" stroke="var(--surface)" stroke-width="3" paint-order="stroke" pointer-events="none">${nf(x.v * 100, 1)}</text>
@@ -270,49 +274,56 @@ function provPage() {
   $('#provSel').innerHTML = D.prov.slice().sort((a, b) => a.name.localeCompare(b.name, 'es')).map(p => `<option value="${p.id}" ${p.id === st.sel ? 'selected' : ''}>${esc(p.name)} (${p.seats})</option>`).join('');
   const win = j => { const s = S.cent[j], sh = S.centShare[j]; let b = 0; for (let i = 1; i < NPAR; i++) if (s[i] > s[b] || (s[i] === s[b] && sh[i] > sh[b])) b = i; return b };
   drawMap('#tiles', { sel: st.sel, group: 'Mapa de provincias', cls: '',
-    fill: (id, j) => { const w = win(j); return [`var(--c-${KEYS[w]})`, 0.42 + 0.58 * S.winCnt[j][w]] }, label: id => ABBR[id], dark: () => false,
-    aria: (id, j) => `${D.prov[j].name}, ${PN[win(j)].name} lidera`, title: (id, j) => `${D.prov[j].name} · ${PN[win(j)].name} · ${Math.round(S.winCnt[j][win(j)] * 100)} %`,
+    fill: (id, j) => { const w = win(j); return [`var(--c-${KEYS[gi(w)]})`, 0.42 + 0.58 * S.winCnt[j][w]] }, label: id => ABBR[id], dark: () => false,
+    aria: (id, j) => `${D.prov[j].name}, ${dnm(gi(win(j)))} lidera`, title: (id, j) => `${D.prov[j].name} · ${dnm(gi(win(j)))} · ${Math.round(S.winCnt[j][win(j)] * 100)} %`,
     pick: id => { st.sel = id; provPage() } });
-  const used = new Set(D.prov.map((p, j) => win(j)));
-  $('#mleg').innerHTML = [...used].map(i => `<span><i style="background:var(--c-${KEYS[i]})"></i>${esc(PN[i].name)}</span>`).join('') + '<span>Más pálido = más disputada</span>';
+  const used = new Set(D.prov.map((p, j) => gi(win(j))));
+  $('#mleg').innerHTML = [...used].map(i => `<span><i style="background:var(--c-${KEYS[i]})"></i>${esc(dnm(i))}</span>`).join('') + '<span>Más pálido = más disputada</span>';
   detail(); thrChart();
 }
 function detail() {
   const { S } = st, j = PI[st.sel], p = D.prov[j]; if (j === undefined) return;
   const row = S.centShare[j], base = p.sh, N = S.N;
-  const ks = []; for (let k = 0; k < NPAR; k++) { const r = need(j, k); if (r.ok && (r.c > 0 || row[k] >= 0.01 || r.hs.p1 >= 0.02)) ks.push(k) }
-  ks.sort((a, b) => row[b] - row[a]);
+  const ks = []; const rv = k => row[SRC(j, k)];
+  for (let k = 0; k < NPAR; k++) { if (hid(k)) continue; const r = need(j, k); if (r.ok && (r.c > 0 || rv(k) >= 0.01 || r.hs.p1 >= 0.02)) ks.push(k) }
+  ks.sort((a, b) => rv(b) - rv(a));
   const q = quotients(row, p.seats), lastW = q.filter(x => x.won).slice(-1)[0], firstO = q.find(x => !x.won);
   const qmax = q[0].q, qshow = p.seats > 12 ? q.filter(x => x.n > p.seats - 10) : q;
   const thr = Math.max(0.03, 1 / (p.seats + 1));
+  const lsRows = []; for (const k of ks) { const kk = SRC(j, k), r = need(j, k), nd = nextNeed(row, kk, p.seats, r.c); if (nd !== null) lsRows.push({ k, c: r.c, share: r.share, need: nd, gap: nd - r.share }) }
+  lsRows.sort((a, b) => a.gap - b.gap);
   $('#pd').innerHTML = `<h3>${esc(p.name)}</h3><div class="meta">${p.seats} ${p.seats === 1 ? 'escaño' : 'escaños'} · ${esc(D.regn[p.ccaa])} · ${nf(p.valid / 1e6, 2)} M de votos válidos en 2023</div>
-  <div class="kpis"><div><b>${fmt(Math.max(0.03, 1 / (p.seats + 1)), 1)}</b><span>voto aproximado para sacar un escaño (el 3 % legal o 1/(escaños+1), el mayor)</span></div>
-  <div><b>${esc(PN[lastW.k].name)}</b><span>se lleva el último escaño con un cociente de ${fmt(lastW.q)}</span></div>
-  <div><b>${firstO ? esc(PN[firstO.k].name) : '–'}</b><span>primero fuera${firstO ? `, con ${fmt(firstO.q)}` : ''}</span></div></div>
+  <div class="kpis"><div><b>${fmt(Math.max(0.03, lastW.q), 1)}</b><span>voto para sacar un escaño: el cociente del último escaño (${fmt(lastW.q)}) o el 3 % legal, el mayor</span></div>
+  <div><b>${esc(dnm(gi(lastW.k)))}</b><span>se lleva el último escaño con un cociente de ${fmt(lastW.q)}</span></div>
+  <div><b>${firstO ? esc(dnm(gi(firstO.k))) : '–'}</b><span>primero fuera${firstO ? `, con ${fmt(firstO.q)}` : ''}</span></div></div>
   <div class="tw"><table class="pt mt prt"><thead><tr><th>Partido</th><th>2023</th><th>Voto est.</th><th>Escaños</th><th>Rango 90 %</th><th>Prob. ≥1</th><th>Para el 1.º</th><th>Para otro más</th></tr></thead><tbody>
   ${ks.map(k => { const r = need(j, k), d1 = r.share - r.n1, dn = r.nx === null ? null : r.nx - r.share, vot = d => Math.round(Math.abs(d) * p.valid / 100) * 100;
-    return `<tr><td><button type="button" class="lk" data-party="${KEYS[k]}">${mark(KEYS[k])}${esc(PN[k].name)}</button></td><td class="num">${fmt(base[k])}</td><td class="num"><b>${fmt(row[k])}</b></td><td class="num s2">${r.c}</td><td class="num">${r.hs.lo}–${r.hs.hi}</td><td class="num">${r.hs.p1 >= 0.995 ? '>99 %' : r.hs.p1 < 0.005 ? '<1 %' : Math.round(r.hs.p1 * 100) + ' %'}</td>
+    return `<tr><td><button type="button" class="lk" data-party="${KEYS[k]}">${mark(KEYS[k])}${esc(dnm(k))}</button></td><td class="num">${fmt(base[k])}</td><td class="num"><b>${fmt(rv(k))}</b></td><td class="num s2">${r.c}</td><td class="num">${r.hs.lo}–${r.hs.hi}</td><td class="num">${r.hs.p1 >= 0.995 ? '>99 %' : r.hs.p1 < 0.005 ? '<1 %' : Math.round(r.hs.p1 * 100) + ' %'}</td>
     <td class="num need" title="Con el resto de partidos escalados en proporción">${fmt(r.n1)} <small class="${d1 >= 0 ? 'gd' : 'bd'}">${pts(d1)}</small></td>
     <td class="num need" ${dn !== null ? `title="Unos ${nf(vot(dn))} votos más, aproximado con la participación de 2023"` : ''}>${dn === null ? '–' : `${fmt(r.nx)} <small class="bd">+${nf(dn * 100, 1)}</small>`}</td></tr>` }).join('')}
   </tbody></table></div>
   <p class="note" style="margin:10px 0 0">«Necesita» es el voto que tendría que sacar el partido en la provincia para llevarse ese escaño, con el resto de partidos escalados en proporción. La cifra pequeña es la distancia en puntos desde su voto estimado (verde si ya lo supera, rojo si le falta). Probabilidades y rangos salen de las ${nf(N)} simulaciones.</p>
+  <h4 class="sh">El último escaño de ${esc(p.name)}</h4>
+  <p class="note">El último escaño se lo lleva ${esc(dnm(gi(lastW.k)))} (su ${lastW.d}.º cociente, ${fmt(lastW.q)}); ${firstO ? `${esc(dnm(gi(firstO.k)))} se queda a las puertas con ${fmt(firstO.q)}, a ${nf((lastW.q - firstO.q) * 100, 2)} puntos de cociente` : 'no hay más candidatos'}. Esa es la barrera efectiva: un partido con ese voto en la provincia, y el resto sin cambios, se lleva un escaño. Abajo, cuánto le falta a cada partido para ganar uno más.</p>
+  <div class="tw"><table class="pt mt"><thead><tr><th>Partido</th><th>Esc.</th><th>Voto est.</th><th>Necesita para uno más</th><th>Le faltan</th></tr></thead><tbody>${lsRows.map(x => `<tr><td>${mark(KEYS[x.k])}${esc(dnm(x.k))}</td><td class="num s2">${x.c}</td><td class="num">${fmt(x.share)}</td><td class="num">${fmt(x.need)}</td><td class="num ${x.gap <= 0 ? 'gd' : 'bd'}">${x.gap <= 0 ? 'ya lo supera' : '+' + nf(x.gap * 100, 1) + ' pts'}${x.gap > 0 ? ` <small class="mut">≈ ${nf(Math.round(x.gap * p.valid / 100) * 100)} votos</small>` : ''}</td></tr>`).join('')}</tbody></table></div>
   <h4 class="sh">Cómo se reparten los escaños</h4>
   <p class="note">Método D'Hondt: cada partido por encima del 3 % divide su voto entre 1, 2, 3…; los ${p.seats} cocientes más altos se llevan un escaño. Las barras sólidas ganan escaño; las de trazo punteado son los primeros que se quedan fuera.${p.seats > 12 ? ' Aquí se muestran solo los últimos diez escaños repartidos y los que se quedan a las puertas.' : ''}</p>
-  <div class="qs">${qshow.map(x => `<div class="qr ${x.won ? 'won' : 'out'}"><span class="qn">${x.n}</span><span class="qp">${mark(KEYS[x.k])}${esc(PN[x.k].name)} <small>÷${x.d}</small></span><span class="qb"><i style="width:${x.q / qmax * 100}%;background:var(--c-${KEYS[x.k]})"></i></span><span class="qv">${fmt(x.q)}</span></div>`).join('')}</div>`;
+  <div class="qs">${qshow.map(x => `<div class="qr ${x.won ? 'won' : 'out'}"><span class="qn">${x.n}</span><span class="qp">${mark(KEYS[gi(x.k)])}${esc(dnm(gi(x.k)))} <small>÷${x.d}</small></span><span class="qb"><i style="width:${x.q / qmax * 100}%;background:var(--c-${KEYS[gi(x.k)]})"></i></span><span class="qv">${fmt(x.q)}</span></div>`).join('')}</div>`;
   $('#pd').querySelectorAll('[data-party]').forEach(b => b.onclick = () => { st.party = b.dataset.party; setTab('partidos') });
   const sel = $('#provSel'); if (sel) sel.value = st.sel;
 }
 
 /* ---- página de partidos ---- */
 function partyPage() {
-  const { S, A } = st, k = KI[st.party], key = KEYS[k];
-  $('#pchips').innerHTML = PN.filter(p => PN.indexOf(p) < NPAR && (A.T[KI[p.k]] > 0)).sort((a, b) => S.seats[KI[b.k]].mean - S.seats[KI[a.k]].mean).map(p => `<button type="button" class="chip" data-k="${p.k}" aria-pressed="${p.k === st.party}" style="--c:var(--c-${p.k})"><i></i>${esc(p.name)} <small>${Math.round(S.seats[KI[p.k]].mean)}</small></button>`).join('');
+  if (grp() && (st.party === 'COMPROMIS' || st.party === 'UPC')) st.party = 'SUMAR';
+  const { S, A } = st, V = view(), k = KI[st.party], key = KEYS[k];
+  $('#pchips').innerHTML = PN.filter(p => PN.indexOf(p) < NPAR && (V.T[KI[p.k]] > 0) && !hid(KI[p.k])).sort((a, b) => V.se[KI[b.k]].mean - V.se[KI[a.k]].mean).map(p => `<button type="button" class="chip" data-k="${p.k}" aria-pressed="${p.k === st.party}" style="--c:var(--c-${p.k})"><i></i>${esc(dnm(KI[p.k]))} <small>${Math.round(V.se[KI[p.k]].mean)}</small></button>`).join('');
   $('#pchips').querySelectorAll('.chip').forEach(c => c.onclick = () => { st.party = c.dataset.k; partyPage() });
-  const si = seatsInt(), rows = [];
+  const si = V.si, rows = [];
   for (let j = 0; j < NJ; j++) rows.push({ j, p: D.prov[j], r: need(j, k) });
   const con = rows.filter(x => x.r.c > 0).length, play = rows.filter(x => x.r.ok && x.r.hs.p1 >= 0.05 && x.r.hs.p1 < 0.95).length, ex = rows.filter(x => x.r.ok).length;
-  const sh = S.share[k], sm = S.seats[k], seatsC = rows.reduce((a, x) => a + x.r.c, 0);
-  $('#pk').innerHTML = `<div><b style="color:var(--c-${key})">${fmt(A.T[k])}</b><span>voto nacional estimado, entre ${fmt(sh.lo)} y ${fmt(sh.hi)}</span></div>
+  const sh = V.sh[k], sm = V.se[k], seatsC = rows.reduce((a, x) => a + x.r.c, 0);
+  $('#pk').innerHTML = `<div><b style="color:var(--c-${key})">${fmt(V.T[k])}</b><span>voto nacional estimado, entre ${fmt(sh.lo)} y ${fmt(sh.hi)}</span></div>
   <div><b>${si[k]}</b><span>escaños en la media de simulaciones, entre ${sm.lo} y ${sm.hi}</span></div>
   <div><b>${con}</b><span>provincias con escaño en el escenario central${ex < NJ ? ` de ${ex} donde se presenta` : ''}</span></div>
   <div><b>${play}</b><span>provincias en juego, con entre un 5 y un 95 % de probabilidad de escaño</span></div>`;
@@ -323,10 +334,10 @@ function partyPage() {
     const g = r.share - r.n1; return g >= 0 ? [`var(--c-${key})`, 0.92] : [`var(--c-${key})`, Math.max(0.08, 0.55 + g / 0.1 * 0.5)] };
   const label = (id, j) => { const r = need(j, k); if (!r.ok) return ''; if (mode === 'seats') return r.c > 0 ? String(r.c) : r.hs.p1 >= 0.25 ? Math.round(r.hs.p1 * 100) + '%' : ''; return nf(r.n1 * 100, r.n1 * 100 >= 10 ? 0 : 1) };
   const dark = (id, j) => { const r = need(j, k); if (!r.ok) return true; if (mode === 'seats') return r.c === 0; return (r.share - r.n1) < -0.03 };
-  drawMap('#pmap', { sel: null, group: `Mapa de escaños de ${PN[k].name} por provincia`, cls: mode === 'seats' ? 'lg' : 'sm', fill, label, dark,
+  drawMap('#pmap', { sel: null, group: `Mapa de escaños de ${dnm(k)} por provincia`, cls: mode === 'seats' ? 'lg' : 'sm', fill, label, dark,
     aria: (id, j) => `${D.prov[j].name}: ${need(j, k).c} escaños`, title: (id, j) => { const r = need(j, k); return r.ok ? `${D.prov[j].name} · ${r.c} escaños · voto ${fmt(r.share)} · necesita ${fmt(r.n1)} para el primero` : `${D.prov[j].name} · no se presenta` },
     pick: id => { st.sel = id; setTab('provincias') } });
-  $('#pmt').textContent = mode === 'seats' ? `Dónde saca escaño ${PN[k].name}` : `Voto que necesita ${PN[k].name} para su primer escaño`;
+  $('#pmt').textContent = mode === 'seats' ? `Dónde saca escaño ${dnm(k)}` : `Voto que necesita ${dnm(k)} para su primer escaño`;
   $('#pmn').textContent = mode === 'seats' ? `El número es el escaño que consigue en el escenario central, ${seatsC} en total (la media de simulaciones da ${si[k]}). Más oscuro, más escaños. Un % en tono claro es una provincia sin escaño en el escenario central pero con esa probabilidad de sacarlo (por eso la media de simulaciones puede superar al escenario central). Pulsa una provincia para ver su detalle.` : 'El número es el % de voto provincial que haría falta para su primer escaño. Sólido: ya lo supera. Más claro: le falta voto, y cuanto más pálido, más lejos está.';
   $('#pleg').innerHTML = mode === 'seats' ? `<span><i style="background:var(--c-${key})"></i>Con escaño</span><span><i style="background:var(--c-${key});opacity:.25"></i>Sin escaño central, con probabilidad ≥ 25 %</span><span><i style="background:var(--track)"></i>Sin escaño o no se presenta</span>` : `<span><i style="background:var(--c-${key})"></i>Ya supera el mínimo</span><span><i style="background:var(--c-${key});opacity:.25"></i>Por debajo</span><span><i style="background:var(--track)"></i>No se presenta</span>`;
   // tabla
@@ -336,7 +347,36 @@ function partyPage() {
   $('#ptab').innerHTML = `<thead><tr><th>Provincia</th><th>Esc.</th><th>Voto est.</th><th title="Voto necesario para el primer escaño">Necesita</th><th title="Voto estimado menos voto necesario, en puntos">Dif.</th><th title="Probabilidad de al menos un escaño">Prob. ≥1</th></tr></thead><tbody>${pr.map(x => { const r = x.r, g = r.share - r.n1;
     return `<tr><td><button type="button" class="lk" data-prov="${x.p.id}">${esc(x.p.name)}</button> <small class="mut">${x.p.seats}</small></td><td class="num s2">${r.c || '·'}</td><td class="num">${fmt(r.share)}</td><td class="num">${fmt(r.n1)}</td><td class="num ${g >= 0 ? 'gd' : 'bd'}">${pts(g)}</td><td class="num">${r.hs.p1 >= 0.995 ? '>99 %' : r.hs.p1 < 0.005 ? '<1 %' : Math.round(r.hs.p1 * 100) + ' %'}</td></tr>` }).join('')}</tbody>`;
   $('#ptab').querySelectorAll('[data-prov]').forEach(b => b.onclick = () => { st.sel = b.dataset.prov; setTab('provincias') });
-  $('#pnote').textContent = ex < NJ ? `${PN[k].name} no se presenta en las ${NJ - ex} provincias restantes.` : '';
+  nextPage(k, rows);
+  $('#pnote').textContent = ex < NJ ? `${dnm(k)} no se presenta en las ${NJ - ex} provincias restantes.` : '';
+}
+
+
+/* ---- el último escaño de cada provincia (Resumen) ---- */
+function lastPage() {
+  const { S } = st, t = $('#lstab'); if (!t) return;
+  const rows = D.prov.map((p, j) => ({ p, j, l: lastSeat(S.centShare[j], p.seats) })).filter(x => x.l.w);
+  const ord = st.lsort || 'margin';
+  rows.sort((a, b) => ord === 'price' ? a.l.price - b.l.price : ord === 'name' ? a.p.name.localeCompare(b.p.name, 'es') : (a.l.margin === null) - (b.l.margin === null) || a.l.margin - b.l.margin);
+  document.querySelectorAll('#lssort button').forEach(b => { b.setAttribute('aria-pressed', b.dataset.s === ord); b.onclick = () => { st.lsort = b.dataset.s; lastPage() } });
+  const mx = Math.max(...rows.map(x => x.l.margin || 0)) || 1;
+  t.innerHTML = `<thead><tr><th>Provincia</th><th>Esc.</th><th>Se lleva el último</th><th title="Cociente D'Hondt del último escaño: voto provincial que haría falta para ganarlo">Barrera</th><th>Primero fuera</th><th title="Diferencia de cociente entre el último que entra y el primero que se queda fuera, en puntos">Margen</th></tr></thead><tbody>${rows.map(x => { const l = x.l;
+    return `<tr><td><button type="button" class="lk" data-prov="${x.p.id}">${esc(x.p.name)}</button></td><td class="num">${x.p.seats}</td><td>${mark(KEYS[gi(l.w.k)])}${esc(dnm(gi(l.w.k)))} <small class="mut">${l.w.d}.º</small></td><td class="num"><b>${fmt(l.price)}</b></td><td>${l.f ? `${mark(KEYS[gi(l.f.k)])}${esc(dnm(gi(l.f.k)))} <small class="mut">${fmt(l.f.q)}</small>` : '–'}</td><td class="num">${l.margin === null ? '–' : `<span class="mgb"><i style="width:${Math.max(3, l.margin / mx * 100)}%"></i></span>${nf(l.margin * 100, 2)}`}</td></tr>` }).join('')}</tbody>`;
+  t.querySelectorAll('[data-prov]').forEach(b => b.onclick = () => { st.sel = b.dataset.prov; setTab('provincias') });
+}
+
+/* ---- a cuántos puntos está un partido de un escaño más (Partidos, hasta 15 puntos) ---- */
+const NX_MAX = 0.15;
+function nextPage(k, rows) {
+  const t = $('#nxtab'); if (!t) return;
+  const { S } = st, key = KEYS[k];
+  const L = [];
+  for (const x of rows) { if (!x.r.ok) continue; const kk = SRC(x.j, k), nd = nextNeed(S.centShare[x.j], kk, x.p.seats, x.r.c); if (nd === null) continue; L.push({ x, nd, gap: nd - x.r.share }) }
+  const near = L.filter(y => y.gap <= NX_MAX).sort((a, b) => a.gap - b.gap), far = L.length - near.length;
+  $('#nxn').textContent = `Puntos de voto provincial que le faltan a ${dnm(k)} para ganar un escaño más en cada provincia, con el resto de partidos sin cambios. Solo se muestran las provincias a menos de 15 puntos.${far ? ` Quedan fuera ${far} más, a más de 15 puntos o sin posibilidad práctica.` : ''}`;
+  t.innerHTML = near.length ? `<thead><tr><th>Provincia</th><th>Esc.</th><th>Voto est.</th><th>Necesita</th><th>Le faltan</th></tr></thead><tbody>${near.map(y => { const r = y.x.r, p = y.x.p;
+    return `<tr><td><button type="button" class="lk" data-prov="${p.id}">${esc(p.name)}</button> <small class="mut">${p.seats}</small></td><td class="num s2">${r.c} → ${r.c + 1}</td><td class="num">${fmt(r.share)}</td><td class="num">${fmt(y.nd)}</td><td class="num"><span class="mgb"><i style="width:${Math.max(3, y.gap / NX_MAX * 100)}%;background:var(--c-${key})"></i></span><b class="${y.gap <= 0 ? 'gd' : 'bd'}">${y.gap <= 0 ? 'ya' : '+' + nf(y.gap * 100, 1)}</b> <small class="mut">≈ ${nf(Math.round(Math.max(0, y.gap) * p.valid / 100) * 100)} votos</small></td></tr>` }).join('')}</tbody>` : `<tbody><tr><td>Ninguna provincia está a menos de 15 puntos de un escaño más.</td></tr></tbody>`;
+  t.querySelectorAll('[data-prov]').forEach(b => b.onclick = () => { st.sel = b.dataset.prov; setTab('provincias') });
 }
 
 /* ---- pestañas ---- */

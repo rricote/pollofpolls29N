@@ -285,6 +285,9 @@ small.gd,td.gd{color:var(--good)}small.bd,td.bd{color:var(--bad)}
 :root[data-theme="dark"]{--c-ADELANTE:#4cc784;--c-COMPROMIS:#f27a53;--c-UPC:#58a6d6}
 .ptw{max-height:680px;overflow:auto}.ptw thead th{position:sticky;top:0;background:var(--surface);z-index:2}
 
+.mgb{display:inline-block;width:56px;height:6px;background:var(--track);border-radius:3px;vertical-align:middle;margin-right:6px;overflow:hidden}
+.mgb i{display:block;height:100%;background:var(--focus);border-radius:3px}
+
 </style>
 </head>
 <body>
@@ -344,6 +347,13 @@ small.gd,td.gd{color:var(--good)}small.bd,td.bd{color:var(--bad)}
     </div>
   </section>
 
+  <section class="card">
+    <h2>El último escaño de cada provincia</h2>
+    <p class="note">El último escaño repartido fija la barrera efectiva: su cociente D'Hondt es el voto provincial que haría falta para llevárselo. El margen es la distancia (en puntos de cociente) con el primer partido que se queda fuera: cuanto menor, más disputado. Pulsa una provincia para ver su detalle.</p>
+    <div class="sortb" id="lssort" role="group" aria-label="Ordenar"><button type="button" class="chip" data-s="margin" aria-pressed="true">Más ajustado</button><button type="button" class="chip" data-s="price" aria-pressed="false">Barrera</button><button type="button" class="chip" data-s="name" aria-pressed="false">A-Z</button></div>
+    <div class="tw tall"><table class="pt mt" id="lstab"></table></div>
+  </section>
+
   </div>
 
   <div class="panel" id="p-provincias" role="tabpanel" aria-labelledby="tab-provincias" hidden>
@@ -357,8 +367,8 @@ small.gd,td.gd{color:var(--good)}small.bd,td.bd{color:var(--bad)}
     <section class="card pd" id="pd"></section>
   </div>
   <section class="card">
-    <h2>Barrera electoral efectiva por provincia</h2>
-    <p class="note">Voto provincial que necesitaría un partido nuevo para sacar el primer escaño, con los demás partidos reducidos en proporción (D'Hondt, escenario central). Se muestra la barrera real sin aplicar el 3 % legal: en Madrid y Barcelona queda por debajo de la línea de puntos, es decir, el 3 % es lo que de verdad les exige la ley. Arriba del todo, los escaños de la provincia; sobre cada barra, su barrera en %. Ceuta y Melilla (un escaño, barrera de 26 % y 31 %) no se muestran. Pulsa una barra para ver la provincia.</p>
+    <h2>Barrera electoral efectiva: el cociente del último escaño</h2>
+    <p class="note">Cociente D'Hondt del último escaño repartido en cada provincia (escenario central): el voto provincial que necesita un partido para llevárselo, con el resto de votos sin cambios. Es la barrera real sin aplicar el 3 % legal: donde queda por debajo de la línea de puntos (Madrid, Barcelona…) manda el 3 %. Arriba, los escaños de la provincia; sobre cada barra, su barrera en %. Ceuta y Melilla (un escaño) no se muestran. Pulsa una barra para ver la provincia.</p>
     <div class="tw"><svg id="thr" role="img" aria-label="Barrera electoral efectiva por provincia"></svg></div>
   </section>
   </div>
@@ -383,6 +393,11 @@ small.gd,td.gd{color:var(--good)}small.bd,td.bd{color:var(--bad)}
       <p class="note" id="pnote" style="margin:10px 0 0"></p>
     </section>
   </div>
+  <section class="card">
+    <h2>A cuánto está de un escaño más</h2>
+    <p class="note" id="nxn"></p>
+    <div class="tw tall"><table class="pt mt" id="nxtab"></table></div>
+  </section>
   </div>
 
   <div class="panel" id="p-encuestas" role="tabpanel" aria-labelledby="tab-encuestas" hidden>
@@ -713,7 +728,22 @@ function histStats(h, N) {
   return { lo, hi, mean: mean / N, p1: 1 - h[0] / N };
 }
 
-/* ---- barrera efectiva: voto mínimo que necesitaría un partido nuevo para sacar un escaño en la provincia (los demás se reducen en proporción) ---- */
+
+/* ---- último escaño: cociente D'Hondt del último escaño repartido (= barrera efectiva) y voto que necesita un partido para ganar un escaño más (el resto de votos sin tocar) ---- */
+function nextNeed(row, k, seats, c) {
+  const m = c + 1; if (m > seats) return null;
+  const o = [];
+  for (let i = 0; i < NPAR; i++) if (i !== k && row[i] >= 0.03) for (let d = 1; d <= seats; d++) o.push(row[i] / d);
+  o.sort((a, b) => b - a);
+  const Q = o.length >= seats - c ? o[seats - m] || 0 : 0;
+  return Math.max(m * Q, c === 0 ? 0.03 : 0);
+}
+function lastSeat(row, seats) {
+  const q = quotients(row, seats), w = q.filter(x => x.won).slice(-1)[0], f = q.find(x => !x.won);
+  return { w, f, price: w ? w.q : 0, margin: w && f ? w.q - f.q : null };
+}
+
+/* ---- barrera efectiva (antigua, con el resto escalado): voto mínimo que necesitaría un partido nuevo para sacar un escaño en la provincia (los demás se reducen en proporción) ---- */
 function effThreshold(row, seats, noLegal) {
   const win = x => {
     const f = (1 - x), q = [];
@@ -763,7 +793,7 @@ function compute() {
 }
 function renderAll() {
   const { A, S } = st; if (!A || !S) return;
-  head(); votes(); chips(); chart(); seats(); groups(); provPage(); partyPage(); weights(); micro();
+  head(); votes(); chips(); chart(); seats(); groups(); provPage(); partyPage(); lastPage(); weights(); micro();
   $('#pill').textContent = 'Poll of polls · ' + new Date(st.o.ref + 'T12:00:00Z').toLocaleDateString('es-ES', { day: 'numeric', month: 'long', timeZone: 'UTC' });
 }
 function seatsInt() { return lr(st.S.seats.map(x => x.mean), 350) }
@@ -988,7 +1018,7 @@ function need(j, k) {
 
 function thrChart() {
   const { S } = st, svg = $('#thr'); if (!svg) return;
-  const L = D.prov.map((p, j) => ({ p, j, e: effThreshold(S.centShare[j], p.seats, true) })).filter(x => x.e !== null && x.p.id !== '51' && x.p.id !== '52').map(x => ({ ...x, v: x.e }));
+  const L = D.prov.map((p, j) => ({ p, j, e: lastSeat(S.centShare[j], p.seats).price })).filter(x => x.e > 0 && x.p.id !== '51' && x.p.id !== '52').map(x => ({ ...x, v: x.e }));
   L.sort((a, b) => a.v - b.v || b.p.seats - a.p.seats);
   const SHORT = { 'Santa Cruz de Tenerife': 'S.C. Tenerife', 'Castelló/Castellón': 'Castelló', 'Alacant/Alicante': 'Alicante', 'València/Valencia': 'València', 'Araba/Álava': 'Araba', 'Illes Balears': 'Baleares' }, nm = p => SHORT[p.name] || p.name;
   const n = L.length, W = Math.max(900, n * 26 + 66), H = 410, m = { l: 56, r: 10, t: 44, b: 96 };
@@ -999,7 +1029,7 @@ function thrChart() {
   for (let v = 0; v <= top + 1e-9; v += st1) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--rule)"/><text x="${m.l - 7}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${Math.round(v * 100)}%</text>`;
   L.forEach((x, i) => {
     const cx = m.l + bw * (i + .5), h = Y(0) - Y(x.v), sel = x.p.id === st.sel, atFloor = x.e <= 0.03;
-    s += `<g data-id="${x.p.id}" class="thrb" tabindex="0" role="button" aria-label="${esc(x.p.name)}: ${x.p.seats} escaños, barrera efectiva ${fmt(x.v)}"><title>${esc(x.p.name)} · ${x.p.seats} escaños · barrera efectiva ${fmt(x.v)}${atFloor ? ' (manda el 3 % legal)' : ''}</title>
+    s += `<g data-id="${x.p.id}" class="thrb" tabindex="0" role="button" aria-label="${esc(x.p.name)}: ${x.p.seats} escaños, barrera efectiva ${fmt(x.v)}"><title>${esc(x.p.name)} · ${x.p.seats} escaños · último escaño a ${fmt(x.v)}${atFloor ? ' (manda el 3 % legal)' : ''}</title>
       <rect x="${cx - bw * .36}" y="${Y(x.v)}" width="${bw * .72}" height="${h}" rx="2" fill="${atFloor ? 'var(--faint)' : 'var(--focus)'}" fill-opacity="${sel ? 1 : .72}"${sel ? ' stroke="var(--ink)" stroke-width="1.5"' : ''}/>
       <rect x="${cx - bw / 2}" y="${m.t - 16}" width="${bw}" height="${H - m.t - m.b + 16 + 90}" fill="transparent"/>
       <text x="${cx}" y="${m.t - 20}" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--ink)">${x.p.seats}</text><text x="${cx}" y="${Y(x.v) - 5}" text-anchor="middle" font-size="10" fill="var(--ink)" stroke="var(--surface)" stroke-width="3" paint-order="stroke" pointer-events="none">${nf(x.v * 100, 1)}</text>
@@ -1033,8 +1063,10 @@ function detail() {
   const q = quotients(row, p.seats), lastW = q.filter(x => x.won).slice(-1)[0], firstO = q.find(x => !x.won);
   const qmax = q[0].q, qshow = p.seats > 12 ? q.filter(x => x.n > p.seats - 10) : q;
   const thr = Math.max(0.03, 1 / (p.seats + 1));
+  const lsRows = []; for (const k of ks) { const kk = SRC(j, k), r = need(j, k), nd = nextNeed(row, kk, p.seats, r.c); if (nd !== null) lsRows.push({ k, c: r.c, share: r.share, need: nd, gap: nd - r.share }) }
+  lsRows.sort((a, b) => a.gap - b.gap);
   $('#pd').innerHTML = `<h3>${esc(p.name)}</h3><div class="meta">${p.seats} ${p.seats === 1 ? 'escaño' : 'escaños'} · ${esc(D.regn[p.ccaa])} · ${nf(p.valid / 1e6, 2)} M de votos válidos en 2023</div>
-  <div class="kpis"><div><b>${fmt(Math.max(0.03, 1 / (p.seats + 1)), 1)}</b><span>voto aproximado para sacar un escaño (el 3 % legal o 1/(escaños+1), el mayor)</span></div>
+  <div class="kpis"><div><b>${fmt(Math.max(0.03, lastW.q), 1)}</b><span>voto para sacar un escaño: el cociente del último escaño (${fmt(lastW.q)}) o el 3 % legal, el mayor</span></div>
   <div><b>${esc(dnm(gi(lastW.k)))}</b><span>se lleva el último escaño con un cociente de ${fmt(lastW.q)}</span></div>
   <div><b>${firstO ? esc(dnm(gi(firstO.k))) : '–'}</b><span>primero fuera${firstO ? `, con ${fmt(firstO.q)}` : ''}</span></div></div>
   <div class="tw"><table class="pt mt prt"><thead><tr><th>Partido</th><th>2023</th><th>Voto est.</th><th>Escaños</th><th>Rango 90 %</th><th>Prob. ≥1</th><th>Para el 1.º</th><th>Para otro más</th></tr></thead><tbody>
@@ -1044,6 +1076,9 @@ function detail() {
     <td class="num need" ${dn !== null ? `title="Unos ${nf(vot(dn))} votos más, aproximado con la participación de 2023"` : ''}>${dn === null ? '–' : `${fmt(r.nx)} <small class="bd">+${nf(dn * 100, 1)}</small>`}</td></tr>` }).join('')}
   </tbody></table></div>
   <p class="note" style="margin:10px 0 0">«Necesita» es el voto que tendría que sacar el partido en la provincia para llevarse ese escaño, con el resto de partidos escalados en proporción. La cifra pequeña es la distancia en puntos desde su voto estimado (verde si ya lo supera, rojo si le falta). Probabilidades y rangos salen de las ${nf(N)} simulaciones.</p>
+  <h4 class="sh">El último escaño de ${esc(p.name)}</h4>
+  <p class="note">El último escaño se lo lleva ${esc(dnm(gi(lastW.k)))} (su ${lastW.d}.º cociente, ${fmt(lastW.q)}); ${firstO ? `${esc(dnm(gi(firstO.k)))} se queda a las puertas con ${fmt(firstO.q)}, a ${nf((lastW.q - firstO.q) * 100, 2)} puntos de cociente` : 'no hay más candidatos'}. Esa es la barrera efectiva: un partido con ese voto en la provincia, y el resto sin cambios, se lleva un escaño. Abajo, cuánto le falta a cada partido para ganar uno más.</p>
+  <div class="tw"><table class="pt mt"><thead><tr><th>Partido</th><th>Esc.</th><th>Voto est.</th><th>Necesita para uno más</th><th>Le faltan</th></tr></thead><tbody>${lsRows.map(x => `<tr><td>${mark(KEYS[x.k])}${esc(dnm(x.k))}</td><td class="num s2">${x.c}</td><td class="num">${fmt(x.share)}</td><td class="num">${fmt(x.need)}</td><td class="num ${x.gap <= 0 ? 'gd' : 'bd'}">${x.gap <= 0 ? 'ya lo supera' : '+' + nf(x.gap * 100, 1) + ' pts'}${x.gap > 0 ? ` <small class="mut">≈ ${nf(Math.round(x.gap * p.valid / 100) * 100)} votos</small>` : ''}</td></tr>`).join('')}</tbody></table></div>
   <h4 class="sh">Cómo se reparten los escaños</h4>
   <p class="note">Método D'Hondt: cada partido por encima del 3 % divide su voto entre 1, 2, 3…; los ${p.seats} cocientes más altos se llevan un escaño. Las barras sólidas ganan escaño; las de trazo punteado son los primeros que se quedan fuera.${p.seats > 12 ? ' Aquí se muestran solo los últimos diez escaños repartidos y los que se quedan a las puertas.' : ''}</p>
   <div class="qs">${qshow.map(x => `<div class="qr ${x.won ? 'won' : 'out'}"><span class="qn">${x.n}</span><span class="qp">${mark(KEYS[gi(x.k)])}${esc(dnm(gi(x.k)))} <small>÷${x.d}</small></span><span class="qb"><i style="width:${x.q / qmax * 100}%;background:var(--c-${KEYS[gi(x.k)]})"></i></span><span class="qv">${fmt(x.q)}</span></div>`).join('')}</div>`;
@@ -1085,7 +1120,36 @@ function partyPage() {
   $('#ptab').innerHTML = `<thead><tr><th>Provincia</th><th>Esc.</th><th>Voto est.</th><th title="Voto necesario para el primer escaño">Necesita</th><th title="Voto estimado menos voto necesario, en puntos">Dif.</th><th title="Probabilidad de al menos un escaño">Prob. ≥1</th></tr></thead><tbody>${pr.map(x => { const r = x.r, g = r.share - r.n1;
     return `<tr><td><button type="button" class="lk" data-prov="${x.p.id}">${esc(x.p.name)}</button> <small class="mut">${x.p.seats}</small></td><td class="num s2">${r.c || '·'}</td><td class="num">${fmt(r.share)}</td><td class="num">${fmt(r.n1)}</td><td class="num ${g >= 0 ? 'gd' : 'bd'}">${pts(g)}</td><td class="num">${r.hs.p1 >= 0.995 ? '>99 %' : r.hs.p1 < 0.005 ? '<1 %' : Math.round(r.hs.p1 * 100) + ' %'}</td></tr>` }).join('')}</tbody>`;
   $('#ptab').querySelectorAll('[data-prov]').forEach(b => b.onclick = () => { st.sel = b.dataset.prov; setTab('provincias') });
+  nextPage(k, rows);
   $('#pnote').textContent = ex < NJ ? `${dnm(k)} no se presenta en las ${NJ - ex} provincias restantes.` : '';
+}
+
+
+/* ---- el último escaño de cada provincia (Resumen) ---- */
+function lastPage() {
+  const { S } = st, t = $('#lstab'); if (!t) return;
+  const rows = D.prov.map((p, j) => ({ p, j, l: lastSeat(S.centShare[j], p.seats) })).filter(x => x.l.w);
+  const ord = st.lsort || 'margin';
+  rows.sort((a, b) => ord === 'price' ? a.l.price - b.l.price : ord === 'name' ? a.p.name.localeCompare(b.p.name, 'es') : (a.l.margin === null) - (b.l.margin === null) || a.l.margin - b.l.margin);
+  document.querySelectorAll('#lssort button').forEach(b => { b.setAttribute('aria-pressed', b.dataset.s === ord); b.onclick = () => { st.lsort = b.dataset.s; lastPage() } });
+  const mx = Math.max(...rows.map(x => x.l.margin || 0)) || 1;
+  t.innerHTML = `<thead><tr><th>Provincia</th><th>Esc.</th><th>Se lleva el último</th><th title="Cociente D'Hondt del último escaño: voto provincial que haría falta para ganarlo">Barrera</th><th>Primero fuera</th><th title="Diferencia de cociente entre el último que entra y el primero que se queda fuera, en puntos">Margen</th></tr></thead><tbody>${rows.map(x => { const l = x.l;
+    return `<tr><td><button type="button" class="lk" data-prov="${x.p.id}">${esc(x.p.name)}</button></td><td class="num">${x.p.seats}</td><td>${mark(KEYS[gi(l.w.k)])}${esc(dnm(gi(l.w.k)))} <small class="mut">${l.w.d}.º</small></td><td class="num"><b>${fmt(l.price)}</b></td><td>${l.f ? `${mark(KEYS[gi(l.f.k)])}${esc(dnm(gi(l.f.k)))} <small class="mut">${fmt(l.f.q)}</small>` : '–'}</td><td class="num">${l.margin === null ? '–' : `<span class="mgb"><i style="width:${Math.max(3, l.margin / mx * 100)}%"></i></span>${nf(l.margin * 100, 2)}`}</td></tr>` }).join('')}</tbody>`;
+  t.querySelectorAll('[data-prov]').forEach(b => b.onclick = () => { st.sel = b.dataset.prov; setTab('provincias') });
+}
+
+/* ---- a cuántos puntos está un partido de un escaño más (Partidos, hasta 15 puntos) ---- */
+const NX_MAX = 0.15;
+function nextPage(k, rows) {
+  const t = $('#nxtab'); if (!t) return;
+  const { S } = st, key = KEYS[k];
+  const L = [];
+  for (const x of rows) { if (!x.r.ok) continue; const kk = SRC(x.j, k), nd = nextNeed(S.centShare[x.j], kk, x.p.seats, x.r.c); if (nd === null) continue; L.push({ x, nd, gap: nd - x.r.share }) }
+  const near = L.filter(y => y.gap <= NX_MAX).sort((a, b) => a.gap - b.gap), far = L.length - near.length;
+  $('#nxn').textContent = `Puntos de voto provincial que le faltan a ${dnm(k)} para ganar un escaño más en cada provincia, con el resto de partidos sin cambios. Solo se muestran las provincias a menos de 15 puntos.${far ? ` Quedan fuera ${far} más, a más de 15 puntos o sin posibilidad práctica.` : ''}`;
+  t.innerHTML = near.length ? `<thead><tr><th>Provincia</th><th>Esc.</th><th>Voto est.</th><th>Necesita</th><th>Le faltan</th></tr></thead><tbody>${near.map(y => { const r = y.x.r, p = y.x.p;
+    return `<tr><td><button type="button" class="lk" data-prov="${p.id}">${esc(p.name)}</button> <small class="mut">${p.seats}</small></td><td class="num s2">${r.c} → ${r.c + 1}</td><td class="num">${fmt(r.share)}</td><td class="num">${fmt(y.nd)}</td><td class="num"><span class="mgb"><i style="width:${Math.max(3, y.gap / NX_MAX * 100)}%;background:var(--c-${key})"></i></span><b class="${y.gap <= 0 ? 'gd' : 'bd'}">${y.gap <= 0 ? 'ya' : '+' + nf(y.gap * 100, 1)}</b> <small class="mut">≈ ${nf(Math.round(Math.max(0, y.gap) * p.valid / 100) * 100)} votos</small></td></tr>` }).join('')}</tbody>` : `<tbody><tr><td>Ninguna provincia está a menos de 15 puntos de un escaño más.</td></tr></tbody>`;
+  t.querySelectorAll('[data-prov]').forEach(b => b.onclick = () => { st.sel = b.dataset.prov; setTab('provincias') });
 }
 
 /* ---- pestañas ---- */
