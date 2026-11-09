@@ -292,6 +292,7 @@ function detail() {
   const thr = Math.max(0.03, 1 / (p.seats + 1));
   const lsRows = []; for (const k of ks) { const kk = SRC(j, k), r = need(j, k), nd = nextNeed(row, kk, p.seats, r.c); if (nd !== null) lsRows.push({ k, c: r.c, share: r.share, need: nd, gap: nd - r.share }) }
   lsRows.sort((a, b) => a.gap - b.gap);
+  const lr = lsRivals(j), lsOne = lr && lr.items.length ? lsStrip([lr]) : '<p class="note">Ningún rival está a menos de 4 puntos de quitarle el último escaño a ' + esc(dnm(gi(lastW.k))) + '.</p>';
   $('#pd').innerHTML = `<h3>${esc(p.name)}</h3><div class="meta">${p.seats} ${p.seats === 1 ? 'escaño' : 'escaños'} · ${esc(D.regn[p.ccaa])} · ${nf(p.valid / 1e6, 2)} M de votos válidos en 2023</div>
   <div class="kpis"><div><b>${fmt(Math.max(0.03, lastW.q), 1)}</b><span>voto para sacar un escaño: el cociente del último escaño (${fmt(lastW.q)}) o el 3 % legal, el mayor</span></div>
   <div><b>${esc(dnm(gi(lastW.k)))}</b><span>se lleva el último escaño con un cociente de ${fmt(lastW.q)}</span></div>
@@ -305,11 +306,13 @@ function detail() {
   <p class="note" style="margin:10px 0 0">«Necesita» es el voto que tendría que sacar el partido en la provincia para llevarse ese escaño, con el resto de partidos escalados en proporción. La cifra pequeña es la distancia en puntos desde su voto estimado (verde si ya lo supera, rojo si le falta). Probabilidades y rangos salen de las ${nf(N)} simulaciones.</p>
   <h4 class="sh">El último escaño de ${esc(p.name)}</h4>
   <p class="note">El último escaño se lo lleva ${esc(dnm(gi(lastW.k)))} (su ${lastW.d}.º cociente, ${fmt(lastW.q)}); ${firstO ? `${esc(dnm(gi(firstO.k)))} se queda a las puertas con ${fmt(firstO.q)}, a ${nf((lastW.q - firstO.q) * 100, 2)} puntos de cociente` : 'no hay más candidatos'}. Esa es la barrera efectiva: un partido con ese voto en la provincia, y el resto sin cambios, se lleva un escaño. Abajo, cuánto le falta a cada partido para ganar uno más.</p>
+  ${lsOne}
   <div class="tw"><table class="pt mt"><thead><tr><th>Partido</th><th>Esc.</th><th>Voto est.</th><th>Necesita para uno más</th><th>Le faltan</th></tr></thead><tbody>${lsRows.map(x => `<tr><td>${mark(KEYS[x.k])}${esc(dnm(x.k))}</td><td class="num s2">${x.c}</td><td class="num">${fmt(x.share)}</td><td class="num">${fmt(x.need)}</td><td class="num ${x.gap <= 0 ? 'gd' : 'bd'}">${x.gap <= 0 ? 'ya lo supera' : '+' + nf(x.gap * 100, 1) + ' pts'}${x.gap > 0 ? ` <small class="mut">≈ ${nf(Math.round(x.gap * p.valid / 100) * 100)} votos</small>` : ''}</td></tr>`).join('')}</tbody></table></div>
   <h4 class="sh">Cómo se reparten los escaños</h4>
   <p class="note">Método D'Hondt: cada partido por encima del 3 % divide su voto entre 1, 2, 3…; los ${p.seats} cocientes más altos se llevan un escaño. Las barras sólidas ganan escaño; las de trazo punteado son los primeros que se quedan fuera.${p.seats > 12 ? ' Aquí se muestran solo los últimos diez escaños repartidos y los que se quedan a las puertas.' : ''}</p>
   <div class="qs">${qshow.map(x => `<div class="qr ${x.won ? 'won' : 'out'}"><span class="qn">${x.n}</span><span class="qp">${mark(KEYS[gi(x.k)])}${esc(dnm(gi(x.k)))} <small>÷${x.d}</small></span><span class="qb"><i style="width:${x.q / qmax * 100}%;background:var(--c-${KEYS[gi(x.k)]})"></i></span><span class="qv">${fmt(x.q)}</span></div>`).join('')}</div>`;
   $('#pd').querySelectorAll('[data-party]').forEach(b => b.onclick = () => { st.party = b.dataset.party; setTab('partidos') });
+  $('#pd').querySelectorAll('.lsr [data-prov]').forEach(b => b.onclick = () => { st.sel = b.dataset.prov; provPage() });
   const sel = $('#provSel'); if (sel) sel.value = st.sel;
 }
 
@@ -352,16 +355,30 @@ function partyPage() {
 }
 
 
-/* ---- el último escaño de cada provincia (Resumen) ---- */
+/* ---- el último escaño de cada provincia: rivales a menos de 4 puntos de quitárselo al partido que lo tiene ---- */
+const LS_MAX = 0.04;
+function lsRivals(j) {
+  const { S } = st, p = D.prov[j], row = S.centShare[j], l = lastSeat(row, p.seats); if (!l.w) return null;
+  const hold = gi(l.w.k), items = [];
+  for (let k = 0; k < NPAR; k++) {
+    if (hid(k) || k === hold) continue;
+    const r = need(j, k); if (!r.ok || r.share < 0.01) continue;
+    const nd = nextNeed(row, SRC(j, k), p.seats, r.c); if (nd === null) continue;
+    const gap = Math.max(0, nd - r.share); if (gap <= LS_MAX) items.push({ k, gap, votes: Math.round(gap * p.valid / 100) * 100 });
+  }
+  items.sort((a, b) => a.gap - b.gap);
+  return { p, j, l, hold, items };
+}
+function lsStrip(rows) {
+  const ax = `<div class="lsr lsh"><div></div><div class="lsx"><span style="left:0">a 4 pts</span><span style="left:25%">a 3 pts</span><span style="left:50%">a 2 pts</span><span style="left:75%">a 1 pt</span><span style="right:0">empate</span></div><div class="lsq">Tiene el último escaño</div></div>`;
+  return `<div class="lsw"><div class="lsg">${ax}${rows.map(r => { const m = r.items[0];
+    return `<div class="lsr"><div class="lsn"><button type="button" class="lk" data-prov="${r.p.id}">${esc(r.p.name)}</button><small class="mut">${r.p.seats} escaños</small></div><div class="lsx lst">${r.items.map(x => `<i class="lsd" tabindex="0" style="left:${(1 - x.gap / LS_MAX) * 100}%;background:var(--c-${KEYS[gi(x.k)]})" title="${esc(dnm(gi(x.k)))} a ${nf(x.gap * 100, 2)} pts · ${nf(x.votes)} votos"></i>`).join('')}${m ? `<span class="lsl" style="${m.gap > LS_MAX / 2 ? `left:${(1 - m.gap / LS_MAX) * 100}%;margin-left:-6px` : `right:${m.gap / LS_MAX * 100}%`};color:var(--c-${KEYS[gi(m.k)]})">${esc(dnm(gi(m.k)))} a ${nf(m.gap * 100, 2)} pts · ${nf(m.votes)} votos</span>` : ''}</div><div class="lsq" style="color:var(--c-${KEYS[r.hold]})"><b>${esc(dnm(r.hold))}</b></div></div>` }).join('')}</div></div>`;
+}
 function lastPage() {
-  const { S } = st, t = $('#lstab'); if (!t) return;
-  const rows = D.prov.map((p, j) => ({ p, j, l: lastSeat(S.centShare[j], p.seats) })).filter(x => x.l.w);
-  const ord = st.lsort || 'margin';
-  rows.sort((a, b) => ord === 'price' ? a.l.price - b.l.price : ord === 'name' ? a.p.name.localeCompare(b.p.name, 'es') : (a.l.margin === null) - (b.l.margin === null) || a.l.margin - b.l.margin);
-  document.querySelectorAll('#lssort button').forEach(b => { b.setAttribute('aria-pressed', b.dataset.s === ord); b.onclick = () => { st.lsort = b.dataset.s; lastPage() } });
-  const mx = Math.max(...rows.map(x => x.l.margin || 0)) || 1;
-  t.innerHTML = `<thead><tr><th>Provincia</th><th>Esc.</th><th>Se lleva el último</th><th title="Cociente D'Hondt del último escaño: voto provincial que haría falta para ganarlo">Barrera</th><th>Primero fuera</th><th title="Diferencia de cociente entre el último que entra y el primero que se queda fuera, en puntos">Margen</th></tr></thead><tbody>${rows.map(x => { const l = x.l;
-    return `<tr><td><button type="button" class="lk" data-prov="${x.p.id}">${esc(x.p.name)}</button></td><td class="num">${x.p.seats}</td><td>${mark(KEYS[gi(l.w.k)])}${esc(dnm(gi(l.w.k)))} <small class="mut">${l.w.d}.º</small></td><td class="num"><b>${fmt(l.price)}</b></td><td>${l.f ? `${mark(KEYS[gi(l.f.k)])}${esc(dnm(gi(l.f.k)))} <small class="mut">${fmt(l.f.q)}</small>` : '–'}</td><td class="num">${l.margin === null ? '–' : `<span class="mgb"><i style="width:${Math.max(3, l.margin / mx * 100)}%"></i></span>${nf(l.margin * 100, 2)}`}</td></tr>` }).join('')}</tbody>`;
+  const t = $('#lstab'); if (!t) return;
+  const rows = []; for (let j = 0; j < NJ; j++) { const r = lsRivals(j); if (r && r.items.length) rows.push(r) }
+  rows.sort((a, b) => a.items[0].gap - b.items[0].gap);
+  t.innerHTML = rows.length ? lsStrip(rows) : '<p class="note">Ninguna provincia tiene un rival a menos de 4 puntos.</p>';
   t.querySelectorAll('[data-prov]').forEach(b => b.onclick = () => { st.sel = b.dataset.prov; setTab('provincias') });
 }
 

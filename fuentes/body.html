@@ -55,9 +55,8 @@
 
   <section class="card">
     <h2>El último escaño de cada provincia</h2>
-    <p class="note">El último escaño repartido fija la barrera efectiva: su cociente D'Hondt es el voto provincial que haría falta para llevárselo. El margen es la distancia (en puntos de cociente) con el primer partido que se queda fuera: cuanto menor, más disputado. Pulsa una provincia para ver su detalle.</p>
-    <div class="sortb" id="lssort" role="group" aria-label="Ordenar"><button type="button" class="chip" data-s="margin" aria-pressed="true">Más ajustado</button><button type="button" class="chip" data-s="price" aria-pressed="false">Barrera</button><button type="button" class="chip" data-s="name" aria-pressed="false">A-Z</button></div>
-    <div class="tw tall"><table class="pt mt" id="lstab"></table></div>
+    <p class="note">El último escaño que se reparte en cada provincia es el que más se juega. Cada cuadrado es un rival y su posición indica cuántos puntos de voto le faltarían para quitárselo al partido que lo tiene (con el resto de partidos sin cambios). Aparecen las provincias con un rival a menos de 4 puntos, de más a menos ajustadas.</p>
+    <div id="lstab"></div>
   </section>
 
   </div>
