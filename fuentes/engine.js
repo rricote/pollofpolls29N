@@ -137,19 +137,26 @@ function facFor(ccaa, k, o) {
   if (!e) return { m: 1, sd: 0.06 };
   return { m: Math.pow(e.f, o.regInt), sd: e.sd };
 }
-function baseMatrix(o, Tsep) {
+/* calibración con el backtest 2015-2023 (ver calibracion-backtest.md): el voto de un partido que sube se reparte entre provincias de forma más plana
+   que el de 2023 (exponente 0,8 sobre su cuota provincial); si baja o se mantiene, proporcional (exponente 1). Solo PP, PSOE, Vox (y SALF, que copia a Vox) y Frente Amplio. */
+const GAMMA_UP = 0.8;
+function gammaFor(k, T) { return ([KI.PP, KI.PSOE, KI.VOX, KI.SUMAR, KI.SALF].includes(k) && T && T[k] > (k === KI.SALF ? 0.005 : D.nat2023[k])) ? GAMMA_UP : 1 }
+/* dispersión provincial propia de cada partido (log), medida en el backtest tras conocer la comunidad: PP 0,06, PSOE 0,08, Vox 0,08, Frente Amplio y Podemos 0,10, regionales entre 0,05 y 0,15 */
+const SDP = (() => { const a = new Array(NK).fill(0.05); [['PP', .06], ['PSOE', .08], ['VOX', .08], ['SUMAR', .10], ['PODEMOS', .10], ['SALF', .10], ['ERC', .15], ['JUNTS', .15], ['BILDU', .06], ['PNV', .04], ['BNG', .12], ['CC', .15], ['UPN', .08], ['ADELANTE', .15], ['COMPROMIS', .10], ['UPC', .10]].forEach(([k, v]) => a[KI[k]] = v); return a })();
+function baseMatrix(o, Tsep, T) {
   if (o.unity && Tsep) {      // lista unitaria: se parte del reparto provincial por separado (ya calibrado) y solo se funden FA y Podemos donde Podemos concurre aparte, con el bonus allí
-    const so = baseMatrix({ ...o, unity: false }); rake(so.S0, Tsep, 16);
+    const so = baseMatrix({ ...o, unity: false }, null, T); rake(so.S0, Tsep, 16);
     D.prov.forEach((p, j) => { if (!D.cfg.regPodemosCoal.includes(p.ccaa)) { so.S0[j][KI.SUMAR] = (so.S0[j][KI.SUMAR] + so.S0[j][KI.PODEMOS]) * o.bonus; so.S0[j][KI.PODEMOS] = 0 } });
     return so;
   }
   const S0 = [], SD = [];
   D.prov.forEach(p => {
-    const row = p.sh.slice(), sd = new Array(NK).fill(0.06), sum = p.sh[KI.SUMAR], C = D.cfg;
-    row[KI.PODEMOS] = C.regPodemosCoal.includes(p.ccaa) ? 0 : sum; row[KI.SALF] = p.sh[KI.VOX];
+    const bs = p.shb || p.sh, row = bs.slice(), sd = new Array(NK).fill(0.06), sum = bs[KI.SUMAR], C = D.cfg;
+    row[KI.PODEMOS] = C.regPodemosCoal.includes(p.ccaa) ? 0 : sum; row[KI.SALF] = p.salf > 0 ? p.salf : bs[KI.VOX];
+    if (T) { for (const k of [KI.PP, KI.PSOE, KI.VOX, KI.SALF]) { const g = gammaFor(k, T); if (g !== 1 && row[k] > 0) row[k] = Math.pow(row[k], g) } const gs = gammaFor(KI.SUMAR, T); if (gs !== 1) { for (const k of [KI.SUMAR, KI.PODEMOS]) if (row[k] > 0) row[k] = Math.pow(row[k], gs) } }
     if (p.ccaa === '10') { row[KI.COMPROMIS] = sum * C.kc; row[KI.SUMAR] = sum * (1 - C.kc) }
     if (p.ccaa === '05') { row[KI.UPC] = sum; row[KI.SUMAR] = 0 }
-    if (p.ccaa === '01') row[KI.ADELANTE] = C.andAdelante;
+    if (p.ccaa === '01') row[KI.ADELANTE] = C.andAdelante * (p.adelR || 1);
     for (let k = 0; k < NPAR; k++) { if (row[k] <= 0) continue; const f = facFor(p.ccaa, k, o); row[k] *= f.m; sd[k] = f.sd * o.regInt }
     S0.push(row); SD.push(sd);
   });
@@ -180,7 +187,7 @@ function natShare(S) { const t = new Array(NK).fill(0); for (let j = 0; j < NJ; 
 const GRP = D.grupos;
 function pct(sorted, p) { const i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo) }
 function simulate(T, o, Tsep) {
-  const { S0, SD } = baseMatrix(o, Tsep);
+  const { S0, SD } = baseMatrix(o, Tsep, T);
   const out = new Int16Array(NPAR);
   // escenario central
   const Sc = S0.map(r => r.slice()); rake(Sc, T, 16);
@@ -202,7 +209,7 @@ function simulate(T, o, Tsep) {
     const S = S0.map(r => r.slice()); rake(S, Tn, 12);
     for (const c in nreg) { const eps = new Array(NK); for (let k = 0; k < NK; k++) eps[k] = normal(R); nreg[c].forEach(j => { for (let k = 0; k < NPAR; k++) if (S[j][k] > 0) { const sd = SD[j][k]; S[j][k] *= Math.exp(sd * eps[k] - sd * sd / 2) } }) }
     for (let j = 0; j < NJ; j++) {
-      let s = 0; for (let k = 0; k < NPAR; k++) if (S[j][k] > 0) S[j][k] *= Math.exp(o.sdProv * normal(R) - o.sdProv * o.sdProv / 2);
+      let s = 0; for (let k = 0; k < NPAR; k++) if (S[j][k] > 0) { const sp = SDP[k] * o.sdProv / 0.05; S[j][k] *= Math.exp(sp * normal(R) - sp * sp / 2) }
       for (let k = 0; k < NK; k++) s += S[j][k]; for (let k = 0; k < NK; k++) S[j][k] /= s;
     }
     const tot = new Int16Array(NPAR);
@@ -237,7 +244,7 @@ function seedPolls() {
   ps.push({ id: 'ceo1169', name: 'CEO 1169 (solo Cataluña)', date: '2026-09-16', n: D.micro.ceo.n, v: {}, q: 1, include: false, src: 'micro', mk: 'ceo', regional: true, note: 'No entra en la media nacional: refuerza los factores de Cataluña' });
   return ps;
 }
-const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.28, sdProv: 0.05, lam: 0.35, house: 1, group: true, blockShift: 0, ref: '2026-11-09' };
+const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.40, sdProv: 0.05, lam: 0.35, house: 1, group: true, blockShift: 0, ref: '2026-11-09' };
 
 /* ---- voto necesario para escaño (D'Hondt, resto de partidos escalados en proporción) ---- */
 const _out = new Int16Array(NPAR);
@@ -265,7 +272,22 @@ function histStats(h, N) {
   return { lo, hi, mean: mean / N, p1: 1 - h[0] / N };
 }
 
-/* ---- barrera efectiva: voto mínimo que necesitaría un partido nuevo para sacar un escaño en la provincia (los demás se reducen en proporción) ---- */
+
+/* ---- último escaño: cociente D'Hondt del último escaño repartido (= barrera efectiva) y voto que necesita un partido para ganar un escaño más (el resto de votos sin tocar) ---- */
+function nextNeed(row, k, seats, c) {
+  const m = c + 1; if (m > seats) return null;
+  const o = [];
+  for (let i = 0; i < NPAR; i++) if (i !== k && row[i] >= 0.03) for (let d = 1; d <= seats; d++) o.push(row[i] / d);
+  o.sort((a, b) => b - a);
+  const Q = o.length >= seats - c ? o[seats - m] || 0 : 0;
+  return Math.max(m * Q, c === 0 ? 0.03 : 0);
+}
+function lastSeat(row, seats) {
+  const q = quotients(row, seats), w = q.filter(x => x.won).slice(-1)[0], f = q.find(x => !x.won);
+  return { w, f, price: w ? w.q : 0, margin: w && f ? w.q - f.q : null };
+}
+
+/* ---- barrera efectiva (antigua, con el resto escalado): voto mínimo que necesitaría un partido nuevo para sacar un escaño en la provincia (los demás se reducen en proporción) ---- */
 function effThreshold(row, seats, noLegal) {
   const win = x => {
     const f = (1 - x), q = [];

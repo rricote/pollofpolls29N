@@ -256,15 +256,29 @@ res['loc'] = loc
 res['adelante_and'] = {'cis': float(cis_reg['01'][0]['ADELANTE']), 'd40': float(d4_reg['01'][0]['ADELANTE']), 'n_cis': int(cis_reg['01'][2]), 'n_d40': int(d4_reg['01'][2])}
 print('LOC Podemos', {k:v for k,v in loc['PODEMOS'].items() if v>0.04}); print('LOC Sumar', {k:v for k,v in loc['SUMAR'].items() if v>0.04}); print('Adelante en Andalucía', res['adelante_and'])
 
+cis9_reg = {}
+for rg, sub in cis9.groupby('reg'):
+    s9, ne9 = shares(sub, sub.wBp, 'vote'); cis9_reg[rg] = (s9, ne9, len(sub))
 # ---------- factores regionales (swing relativo respecto al nacional) ----------
 # Referencia nacional: media de CIS y 40dB (variante B) para que el sesgo general de cada encuesta no se confunda con efecto regional.
 nat_ref = (B*nB + B4*nB4)/(nB + nB4)
 TAU = 0.18
+# Vox no concurrió en Santa Cruz de Tenerife en 2023; para medir el cambio regional se imputa su cuota esperada (11,7 %: cuota relativa media de la provincia en noviembre de 2019 y europeas de 2024)
+VOX_TF = 0.117
+_f = pv.valid.copy(); _sh = pt[KEYS].div(pt[KEYS].sum(axis=1), axis=0)
+_sh.loc['38'] = _sh.loc['38'] * (1 - VOX_TF); _sh.loc['38', 'VOX'] = VOX_TF
+_sh['ccaa'] = pt.ccaa
+b_reg_f = _sh.groupby('ccaa').apply(lambda d: (d[KEYS].mul(_f.loc[d.index], axis=0)).sum()/_f.loc[d.index].sum())
+print('Canarias Vox base real %.3f -> con imputación %.3f' % (b_reg.loc['05','VOX'], b_reg_f.loc['05','VOX']))
+# calibrado con el backtest 2015-2023 (error regional de la predicción solo con el dato nacional): PP 0,11, PSOE 0,10, Vox 0,16, Frente Amplio 0,18
+TAUP = {'PP': 0.11, 'PSOE': 0.10, 'VOX': 0.16, 'SUMAR': 0.18}
 def lnf(s_reg, ne, b_c, b_n, s_n, p):
     s = max(s_reg[p], 1e-4)
     est = np.log(s/b_c[p]) - np.log(s_n[p]/b_n[p])
     se = np.sqrt((1-s)/(s*max(ne, 1)))
     return est, se
+PRI = json.load(open(W+'work/profiles.json')).get('reg_prior', {})
+TAUP_PRI = {'PP': 0.07}   # con prior autonómico el error regional del PP baja de 0,108 a ~0,06 en el backtest
 regions = sorted(reg.index)
 fac = {}
 for rg in regions:
@@ -273,15 +287,19 @@ for rg in regions:
     for p in KEYS:
         if p in ('PODEMOS', 'SALF', 'ADELANTE', 'BLANCO', 'OTROS') or b_reg.loc[rg, p] < 0.02:
             continue
-        # CIS (referencia: su propio nacional)
-        e1, se1 = lnf(s_c, ne, b_reg.loc[rg], b_nat, B, p)
+        # fuentes: CIS 3582 (su nacional), CIS 3577 y 40dB flash (con muestra regional suficiente), todas contra la base 2023 ajustada
+        e1, se1 = lnf(s_c, ne, b_reg_f.loc[rg], b_nat, B, p)
         ests = [(e1, se1)]
+        if rg in cis9_reg and cis9_reg[rg][1] >= 20: ests.append(lnf(cis9_reg[rg][0], cis9_reg[rg][1], b_reg_f.loc[rg], b_nat, B9, p))
+        if rg in d4_reg and d4_reg[rg][1] >= 20: ests.append(lnf(d4_reg[rg][0], d4_reg[rg][1], b_reg_f.loc[rg], b_nat, B4, p))
         if rg == '09':       # añade CEO (referencia: nacional medio de CIS/40dB)
-            e2, se2 = lnf(Bc, nBc, b_reg.loc[rg], b_nat, nat_ref, p)
+            e2, se2 = lnf(Bc, nBc, b_reg_f.loc[rg], b_nat, nat_ref, p)
             ests.append((e2, se2))
         wsum = sum(1/se**2 for e, se in ests); e = sum(e/se**2 for e, se in ests)/wsum; se = np.sqrt(1/wsum)
-        w = TAU**2/(TAU**2 + se**2)
-        row[p] = {'raw': round(float(e), 4), 'se': round(float(se), 4), 'f': round(float(np.exp(w*e)), 4), 'sd': round(float(np.sqrt(1/(1/TAU**2 + 1/se**2))), 4)}
+        m = PRI.get(rg, {}).get({'VOX':'VOX'}.get(p, p), 0.0) if rg in PRI else 0.0
+        tp = TAUP_PRI.get(p, TAUP.get(p, TAU)) if rg in PRI and p in PRI[rg] else TAUP.get(p, TAU)
+        w = tp**2/(tp**2 + se**2)
+        row[p] = {'raw': round(float(e), 4), 'se': round(float(se), 4), 'f': round(float(np.exp(m + w*(e - m))), 4), 'sd': round(float(np.sqrt(1/(1/tp**2 + 1/se**2))), 4), 'm': round(float(m), 4)}
     fac[rg] = row
 res['factores_regionales'] = fac
 res['tau'] = TAU

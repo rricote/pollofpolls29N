@@ -228,7 +228,7 @@ function present(j, k) {
   if (K === 'ADELANTE') return p.ccaa === '01';
   if (K === 'COMPROMIS') return p.ccaa === '10';
   if (K === 'UPC') return p.ccaa === '05';
-  return p.sh[k] > 0 || (K === 'SALF' && st.A.T[k] > 0);
+  return (p.shb || p.sh)[k] > 0 || (K === 'SALF' && st.A.T[k] > 0);
 }
 const NC = {};
 /* con las confluencias agrupadas, la lista del espacio Frente Amplio de cada provincia (Frente Amplio, Compromís o UPC) se muestra como una sola: «Frente Amplio + confluencias» */
@@ -364,7 +364,7 @@ function lsRivals(j) {
     if (hid(k) || k === hold) continue;
     const r = need(j, k); if (!r.ok || r.share < 0.01) continue;
     const nd = nextNeed(row, SRC(j, k), p.seats, r.c); if (nd === null) continue;
-    const gap = Math.max(0, nd - r.share); if (gap <= LS_MAX) items.push({ k, gap, votes: Math.round(gap * p.valid / 100) * 100 });
+    const gap = Math.max(0, nd - r.share); if (gap <= LS_MAX) items.push({ k, gap, votes: Math.round(gap * p.valid / 10) * 10 });
   }
   items.sort((a, b) => a.gap - b.gap);
   return { p, j, l, hold, items };

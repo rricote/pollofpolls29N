@@ -25,6 +25,17 @@ ADEL23 = 0.0142
 for p in prov:
     if p['id'] == '11':
         p['sh'][KEYS.index('ADELANTE')] = ADEL23; p['sh'][KEYS.index('OTROS')] -= ADEL23
+# Vox no concurrió en Santa Cruz de Tenerife en 2023: para repartir el voto de 2026 se usa una base imputada (11,7 %: cuota relativa de la provincia en noviembre de 2019 y europeas de 2024); la columna «2023» sigue mostrando el dato real
+VOX_TF = 0.117
+for p in prov:
+    if p['id'] == '38':
+        sb = [x * (1 - VOX_TF) for x in p['sh']]; sb[KEYS.index('VOX')] = VOX_TF; p['shb'] = [round(x, 6) for x in sb]
+# perfiles territoriales propios (en lugar de copiar a Vox y de un reparto plano): SALF según las europeas de 2024 y Adelante Andalucía según las autonómicas andaluzas del 17-may-2026
+PRF = json.load(open(HERE + 'profiles.json'))
+_va = sum(p['valid'] for p in prov if p['id'] in PRF['adelante_and_2026']); _ma = sum(p['valid'] * PRF['adelante_and_2026'][p['id']] for p in prov if p['id'] in PRF['adelante_and_2026']) / _va
+for p in prov:
+    p['salf'] = PRF['salf_eu24'].get(p['id'], 0.0)
+    if p['id'] in PRF['adelante_and_2026']: p['adelR'] = round(PRF['adelante_and_2026'][p['id']] / _ma, 4)
 assert sum(p['seats'] for p in prov) == 350
 
 def micro(k):
@@ -83,7 +94,7 @@ out = {
  'micro': {'cis': micro('cis'), 'cis9': micro('cis9'), 'd40': micro('d40'), 'ceo': micro('ceo')},
  'grupos': grupos, 'cfg': cfg, 'polls': polls_build.polls,
  'cat2023': exd(M['b_reg']['09']),
- 'ver': '7-20261109',
+ 'ver': '12-20261109',
 }
 s = json.dumps(out, ensure_ascii=False, separators=(',', ':'))
 open(HERE + 'data.js', 'w', encoding='utf-8').write('const D=' + s + ';\n')

@@ -1,0 +1,6 @@
+Error de la media de encuestas finales (puntos, estimada - real), sin efectos casa
+  2023 PSOE 28.5 vs 31.7 (-3.2); PP 33.7 vs 33.1 (+0.6); VOX 13.2 vs 12.4 (+0.8); IZQ 13.4 vs 12.3 (+1.1)
+  2019n PSOE 27.3 vs 28.0 (-0.7); PP 21.0 vs 20.8 (+0.2); VOX 13.1 vs 15.1 (-2.0); IZQ 12.4 vs 12.9 (-0.5); CS 9.1 vs 6.8 (+2.3)
+  2019a PSOE 28.8 vs 28.7 (+0.1); PP 20.3 vs 16.7 (+3.6); VOX 11.0 vs 10.3 (+0.7); IZQ 13.7 vs 14.3 (-0.6); CS 14.9 vs 15.9 (-1.0)
+sdSys implícito (rms de error/raíz(voto %)) = 0.42; el modelo usa 0,28; n=14
+error absoluto medio 1.25 pts; sesgo medio PP +1.5, PSOE -1.3, Vox -0.2, Izq -0.0

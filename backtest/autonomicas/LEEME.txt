@@ -1,0 +1,9 @@
+Backtest con autonomicas 2019-2026 y europeas 2019/2024 (9-nov-2026)
+load_reg.py  carga los json.js de la carpeta "Web autonomicas" (ruta de la carpeta de subida; cambiar R si se ejecuta en otro sitio)
+an1-an2  cambio provincial dentro de la comunidad: autonomica vs general
+an3b     nivel de la comunidad frente a España: autonomica vs general (usa provincias INE por comunidad)
+an4-an5  mezcla de cambio autonomico y reversion a la media; reversion por transicion de generales
+an6-an7  europeas 2019 y 2024 provincia a provincia como señal
+an8      comparacion del reparto actual del modelo con las autonomicas 2025-26
+regprior.py  calcula el prior regional (reg_prior.json) que usa prep_micro.py via profiles.json
+Nota: an3, an1 y an2 usaban en origen codigos de comunidad del Ministerio mal asignados en alguna prueba; los resultados validos son los de an3b.
