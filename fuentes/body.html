@@ -71,6 +71,10 @@
     </section>
     <section class="card pd" id="pd"></section>
   </div>
+  <div class="cols2">
+  <section class="card pd" id="pls"></section>
+  <section class="card pd" id="pqs"></section>
+  </div>
   <section class="card">
     <h2>Barrera electoral efectiva: el cociente del último escaño</h2>
     <p class="note">Cociente D'Hondt del último escaño repartido en cada provincia (escenario central): el voto provincial que necesita un partido para llevárselo, con el resto de votos sin cambios. Es la barrera real sin aplicar el 3 % legal: donde queda por debajo de la línea de puntos (Madrid, Barcelona…) manda el 3 %. Arriba, los escaños de la provincia; sobre cada barra, su barrera en %. Ceuta y Melilla (un escaño) no se muestran. Pulsa una barra para ver la provincia.</p>
@@ -83,8 +87,10 @@
     <h2>Elige un partido</h2>
     <p class="note">El número junto al nombre es su media de escaños en las simulaciones.</p>
     <div class="chips" id="pchips" role="group" aria-label="Partido"></div>
+    <fieldset class="fld seg scn" aria-label="Escenario de voto"><legend class="lbl">Escenario: el partido sube y los demás bajan en proporción</legend><span><input type="radio" name="ps" id="ps0" value="0" checked><label for="ps0">Actual</label><input type="radio" name="ps" id="ps1" value="1"><label for="ps1">+1 punto</label><input type="radio" name="ps" id="ps2" value="2"><label for="ps2">+2 puntos</label><input type="radio" name="ps" id="ps3" value="3"><label for="ps3">+3 puntos</label></span></fieldset>
     <div class="kpis" id="pk"></div>
   </section>
+  <section class="card" id="pscnc" hidden></section>
   <div class="mapwrap partywrap">
     <section class="card">
       <div class="rowhead"><div><h2 id="pmt">Dónde saca escaño</h2><p class="note" id="pmn"></p></div>

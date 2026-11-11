@@ -300,6 +300,19 @@ small.gd,td.gd{color:var(--good)}small.bd,td.bd{color:var(--bad)}
 .lsd{position:absolute;top:60%;width:12px;height:12px;margin:-4px 0 0 -6px;border-radius:2px}
 .lsl{position:absolute;top:0;font-size:12px;font-weight:600;white-space:nowrap;transform:translateX(0);margin-right:-4px}
 
+.cols2{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:22px;align-items:start}
+@media(max-width:860px){.cols2{grid-template-columns:minmax(0,1fr)}}
+.cols2 .lsg{min-width:0}
+.cols2 .pt.mt{min-width:0}
+.cols2 .pt th{white-space:normal;letter-spacing:.02em;font-size:10px;padding:0 5px 7px;vertical-align:bottom}
+.cols2 .pt td{padding:5px}
+.cols2 .lsx{white-space:normal}
+
+.scn{margin:14px 0 4px}
+.cols2s{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:22px;align-items:start}
+@media(max-width:860px){.cols2s{grid-template-columns:minmax(0,1fr)}}
+.scng{display:flex;flex-direction:column;gap:12px}.scng>div{border:1px solid var(--rule);border-radius:6px;padding:10px 12px}.scng b{display:block;font:600 14px var(--f-body)}.scng span{font-size:13px;color:var(--muted)}.scng span b{display:inline;font-size:13px;color:var(--ink)}
+
 </style>
 </head>
 <body>
@@ -377,6 +390,10 @@ small.gd,td.gd{color:var(--good)}small.bd,td.bd{color:var(--bad)}
     </section>
     <section class="card pd" id="pd"></section>
   </div>
+  <div class="cols2">
+  <section class="card pd" id="pls"></section>
+  <section class="card pd" id="pqs"></section>
+  </div>
   <section class="card">
     <h2>Barrera electoral efectiva: el cociente del último escaño</h2>
     <p class="note">Cociente D'Hondt del último escaño repartido en cada provincia (escenario central): el voto provincial que necesita un partido para llevárselo, con el resto de votos sin cambios. Es la barrera real sin aplicar el 3 % legal: donde queda por debajo de la línea de puntos (Madrid, Barcelona…) manda el 3 %. Arriba, los escaños de la provincia; sobre cada barra, su barrera en %. Ceuta y Melilla (un escaño) no se muestran. Pulsa una barra para ver la provincia.</p>
@@ -389,8 +406,10 @@ small.gd,td.gd{color:var(--good)}small.bd,td.bd{color:var(--bad)}
     <h2>Elige un partido</h2>
     <p class="note">El número junto al nombre es su media de escaños en las simulaciones.</p>
     <div class="chips" id="pchips" role="group" aria-label="Partido"></div>
+    <fieldset class="fld seg scn" aria-label="Escenario de voto"><legend class="lbl">Escenario: el partido sube y los demás bajan en proporción</legend><span><input type="radio" name="ps" id="ps0" value="0" checked><label for="ps0">Actual</label><input type="radio" name="ps" id="ps1" value="1"><label for="ps1">+1 punto</label><input type="radio" name="ps" id="ps2" value="2"><label for="ps2">+2 puntos</label><input type="radio" name="ps" id="ps3" value="3"><label for="ps3">+3 puntos</label></span></fieldset>
     <div class="kpis" id="pk"></div>
   </section>
+  <section class="card" id="pscnc" hidden></section>
   <div class="mapwrap partywrap">
     <section class="card">
       <div class="rowhead"><div><h2 id="pmt">Dónde saca escaño</h2><p class="note" id="pmn"></p></div>
@@ -795,7 +814,7 @@ const fmt = (x, d = 1) => (x * 100).toLocaleString('es-ES', { minimumFractionDig
 const nf = (x, d = 0) => Number(x).toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
 const PN = D.parties, PNAME = {}; PN.forEach(p => PNAME[p.k] = p.name); PNAME.BLANCO = 'En blanco';
 const dshort = s => new Date(s + 'T12:00:00Z').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' });
-const st = { polls: seedPolls(), o: { ...DEFAULTS }, sel: '28', tab: 'resumen', party: 'PP', pmode: 'seats', psort: 'gap', series: new Set(['PP', 'PSOE', 'VOX', 'SUMAR', 'PODEMOS']), A: null, S: null };
+const st = { polls: seedPolls(), o: { ...DEFAULTS }, sel: '28', tab: 'resumen', party: 'PP', pmode: 'seats', psort: 'gap', pscn: 0, ver: 0, series: new Set(['PP', 'PSOE', 'VOX', 'SUMAR', 'PODEMOS']), A: null, S: null };
 const LS = 'pop29n-' + D.ver;
 function load() { try { const s = JSON.parse(localStorage.getItem(LS)); if (s && s.polls && s.o) { st.polls = s.polls; Object.assign(st.o, s.o, { ref: DEFAULTS.ref }) } } catch (e) { } }
 function save() { try { localStorage.setItem(LS, JSON.stringify({ polls: st.polls, o: st.o })) } catch (e) { } }
@@ -806,7 +825,7 @@ function schedule(ms = 120) { clearTimeout(timer); $('#pill').textContent = 'Rec
 function compute() {
   const A = aggregate(st.polls, st.o); st.A = A;
   if (!A) { $('#headline').textContent = 'Marca al menos una encuesta con datos completos'; $('#sub').textContent = ''; $('#pill').textContent = 'Sin datos'; return }
-  st.S = simulate(A.T, st.o, A.Tsep);
+  st.S = simulate(A.T, st.o, A.Tsep); st.ver++; st.scn = null;
   renderAll();
 }
 function renderAll() {
@@ -1094,22 +1113,58 @@ function detail() {
     <td class="num need" title="Con el resto de partidos escalados en proporción">${fmt(r.n1)} <small class="${d1 >= 0 ? 'gd' : 'bd'}">${pts(d1)}</small></td>
     <td class="num need" ${dn !== null ? `title="Unos ${nf(vot(dn))} votos más, aproximado con la participación de 2023"` : ''}>${dn === null ? '–' : `${fmt(r.nx)} <small class="bd">+${nf(dn * 100, 1)}</small>`}</td></tr>` }).join('')}
   </tbody></table></div>
-  <p class="note" style="margin:10px 0 0">«Necesita» es el voto que tendría que sacar el partido en la provincia para llevarse ese escaño, con el resto de partidos escalados en proporción. La cifra pequeña es la distancia en puntos desde su voto estimado (verde si ya lo supera, rojo si le falta). Probabilidades y rangos salen de las ${nf(N)} simulaciones.</p>
-  <h4 class="sh">El último escaño de ${esc(p.name)}</h4>
+  <p class="note" style="margin:10px 0 0">«Necesita» es el voto que tendría que sacar el partido en la provincia para llevarse ese escaño, con el resto de partidos escalados en proporción. La cifra pequeña es la distancia en puntos desde su voto estimado (verde si ya lo supera, rojo si le falta). Probabilidades y rangos salen de las ${nf(N)} simulaciones.</p>`;
+  $('#pls').innerHTML = `  <h2>El último escaño de ${esc(p.name)}</h2>
   <p class="note">El último escaño se lo lleva ${esc(dnm(gi(lastW.k)))} (su ${lastW.d}.º cociente, ${fmt(lastW.q)}); ${firstO ? `${esc(dnm(gi(firstO.k)))} se queda a las puertas con ${fmt(firstO.q)}, a ${nf((lastW.q - firstO.q) * 100, 2)} puntos de cociente` : 'no hay más candidatos'}. Esa es la barrera efectiva: un partido con ese voto en la provincia, y el resto sin cambios, se lleva un escaño. Abajo, cuánto le falta a cada partido para ganar uno más.</p>
   ${lsOne}
-  <div class="tw"><table class="pt mt"><thead><tr><th>Partido</th><th>Esc.</th><th>Voto est.</th><th>Necesita para uno más</th><th>Le faltan</th></tr></thead><tbody>${lsRows.map(x => `<tr><td>${mark(KEYS[x.k])}${esc(dnm(x.k))}</td><td class="num s2">${x.c}</td><td class="num">${fmt(x.share)}</td><td class="num">${fmt(x.need)}</td><td class="num ${x.gap <= 0 ? 'gd' : 'bd'}">${x.gap <= 0 ? 'ya lo supera' : '+' + nf(x.gap * 100, 1) + ' pts'}${x.gap > 0 ? ` <small class="mut">≈ ${nf(Math.round(x.gap * p.valid / 100) * 100)} votos</small>` : ''}</td></tr>`).join('')}</tbody></table></div>
-  <h4 class="sh">Cómo se reparten los escaños</h4>
+  <div class="tw"><table class="pt mt"><thead><tr><th>Partido</th><th>Esc.</th><th>Voto est.</th><th>Necesita para uno más</th><th>Le faltan</th></tr></thead><tbody>${lsRows.map(x => `<tr><td>${mark(KEYS[x.k])}${esc(dnm(x.k))}</td><td class="num s2">${x.c}</td><td class="num">${fmt(x.share)}</td><td class="num">${fmt(x.need)}</td><td class="num ${x.gap <= 0 ? 'gd' : 'bd'}">${x.gap <= 0 ? 'ya lo supera' : '+' + nf(x.gap * 100, 1) + ' pts'}${x.gap > 0 ? ` <small class="mut">≈ ${nf(Math.round(x.gap * p.valid / 100) * 100)} votos</small>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
+  $('#pqs').innerHTML = `  <h2>Cómo se reparten los escaños en ${esc(p.name)}</h2>
   <p class="note">Método D'Hondt: cada partido por encima del 3 % divide su voto entre 1, 2, 3…; los ${p.seats} cocientes más altos se llevan un escaño. Las barras sólidas ganan escaño; las de trazo punteado son los primeros que se quedan fuera.${p.seats > 12 ? ' Aquí se muestran solo los últimos diez escaños repartidos y los que se quedan a las puertas.' : ''}</p>
   <div class="qs">${qshow.map(x => `<div class="qr ${x.won ? 'won' : 'out'}"><span class="qn">${x.n}</span><span class="qp">${mark(KEYS[gi(x.k)])}${esc(dnm(gi(x.k)))} <small>÷${x.d}</small></span><span class="qb"><i style="width:${x.q / qmax * 100}%;background:var(--c-${KEYS[gi(x.k)]})"></i></span><span class="qv">${fmt(x.q)}</span></div>`).join('')}</div>`;
-  $('#pd').querySelectorAll('[data-party]').forEach(b => b.onclick = () => { st.party = b.dataset.party; setTab('partidos') });
-  $('#pd').querySelectorAll('.lsr [data-prov]').forEach(b => b.onclick = () => { st.sel = b.dataset.prov; provPage() });
+  ['#pd', '#pls', '#pqs'].forEach(q => $(q).querySelectorAll('[data-party]').forEach(b => b.onclick = () => { st.party = b.dataset.party; setTab('partidos') }));
+  $('#pls').querySelectorAll('.lsr [data-prov]').forEach(b => b.onclick = () => { st.sel = b.dataset.prov; provPage() });
   const sel = $('#provSel'); if (sel) sel.value = st.sel;
 }
 
 /* ---- página de partidos ---- */
+/* ---- escenario: el partido elegido sube x puntos de voto nacional y los demás bajan en proporción; se recalcula toda la simulación ---- */
+function scnVec(vec, key, x) {
+  const idx = (grp() && key === 'SUMAR') ? FACI() : [KI[key]], g = idx.reduce((a, i) => a + vec[i], 0);
+  if (g <= 0) return vec.slice();
+  const n = Math.min(x, 0.9 * (1 - g)), f = (g + n) / g, h = (1 - g - n) / (1 - g);
+  return vec.map((v, i) => v * (idx.includes(i) ? f : h));
+}
 function partyPage() {
+  if (!st.A || !st.S) return;
   if (grp() && (st.party === 'COMPROMIS' || st.party === 'UPC')) st.party = 'SUMAR';
+  document.querySelectorAll('input[name=ps]').forEach(r => r.checked = (+r.value === st.pscn));
+  const x = st.pscn / 100, card = $('#pscnc');
+  if (!x) { card.hidden = true; partyPageBase(); return }
+  if (st.tab !== 'partidos') return;
+  const A0 = st.A, S0 = st.S, V0 = view(), key = st.party, id = key + '|' + st.pscn + '|' + st.ver;
+  if (!st.scn || st.scn.id !== id) {
+    const T = scnVec(A0.T, key, x), Tsep = scnVec(A0.Tsep, key, x);
+    st.scn = { id, T, Tsep, S: simulate(T, st.o, Tsep) };
+  }
+  st.A = { ...A0, T: st.scn.T, Tsep: st.scn.Tsep }; st.S = st.scn.S;
+  try { partyPageBase(); scnCard(V0, view(), S0, st.S, key) } finally { st.A = A0; st.S = S0 }
+  card.hidden = false;
+}
+function scnCard(V0, V1, S0, S1, key) {
+  const k = KI[key], nm = dnm(k), x = st.pscn;
+  const idx = PN.map((p, i) => i).filter(i => i < NPAR && (V0.si[i] > 0 || V1.si[i] > 0 || V0.T[i] > 0.01 || V1.T[i] > 0.01)).sort((a, b) => V1.se[b].mean - V1.se[a].mean);
+  const dl = d => d === 0 ? '<span class="mut">=</span>' : `<b class="${d > 0 ? 'gd' : 'bd'}">${d > 0 ? '+' : '−'}${Math.abs(d)}</b>`;
+  const gr = id => { const a = S0.groups.find(g => g.id === id), b = S1.groups.find(g => g.id === id); return { a, b } };
+  const pt = p => p > 0.99 ? 'más del 99 %' : p < 0.01 ? 'menos del 1 %' : Math.round(p * 100) + ' %';
+  const g1 = gr('pp_vox_der'), g2 = gr('psoe_socios');
+  $('#pscnc').innerHTML = `<h2>Si ${esc(nm)} sacara ${x} ${x === 1 ? 'punto' : 'puntos'} más</h2>
+  <p class="note">Se suman ${x} ${x === 1 ? 'punto' : 'puntos'} al voto nacional de ${esc(nm)} (${fmt(V0.T[k])} → ${fmt(V1.T[k])}) y se restan a todos los demás en proporción. El reparto provincial y las 1.000 simulaciones se recalculan completos. Debajo, el mapa y las tablas de esta página muestran ya el escenario.</p>
+  <div class="cols2s">
+  <div class="tw"><table class="pt mt"><thead><tr><th>Partido</th><th>Voto</th><th>Escaños ahora</th><th>Escenario</th><th>Cambio</th></tr></thead><tbody>${idx.map(i => `<tr${i === k ? ' class="sel"' : ''}><td><span class="sw" style="background:var(--c-${KEYS[i]})"></span> ${esc(dnm(i))}</td><td class="num">${fmt(V0.T[i])} → ${fmt(V1.T[i])}</td><td class="num">${V0.si[i]}</td><td class="num"><b>${V1.si[i]}</b></td><td class="num">${dl(V1.si[i] - V0.si[i])}</td></tr>`).join('')}</tbody></table></div>
+  <div class="scng">${[g1, g2].map(g => `<div><b>${esc(g.a.label)}</b><span>${Math.round(g.a.mean)} → <b>${Math.round(g.b.mean)}</b> escaños · mayoría absoluta (176) en ${pt(g.a.p176)} → <b>${pt(g.b.p176)}</b> de las simulaciones</span></div>`).join('')}</div></div>`;
+}
+function partyPageBase() {
+  for (const k in NC) delete NC[k];
   const { S, A } = st, V = view(), k = KI[st.party], key = KEYS[k];
   $('#pchips').innerHTML = PN.filter(p => PN.indexOf(p) < NPAR && (V.T[KI[p.k]] > 0) && !hid(KI[p.k])).sort((a, b) => V.se[KI[b.k]].mean - V.se[KI[a.k]].mean).map(p => `<button type="button" class="chip" data-k="${p.k}" aria-pressed="${p.k === st.party}" style="--c:var(--c-${p.k})"><i></i>${esc(dnm(KI[p.k]))} <small>${Math.round(V.se[KI[p.k]].mean)}</small></button>`).join('');
   $('#pchips').querySelectorAll('.chip').forEach(c => c.onclick = () => { st.party = c.dataset.k; partyPage() });
@@ -1192,13 +1247,14 @@ const TABS = ['resumen', 'provincias', 'partidos', 'encuestas'];
 function setTab(t, quiet) {
   if (!TABS.includes(t)) t = 'resumen'; st.tab = t;
   TABS.forEach(x => { const on = x === t, b = $('#tab-' + x); $('#p-' + x).hidden = !on; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1 });
-  if (st.A && st.S) { if (t === 'provincias') detail(); if (t === 'resumen') chart() }
+  if (st.A && st.S) { if (t === 'provincias') detail(); if (t === 'resumen') chart(); if (t === 'partidos' && st.pscn) partyPage() }
   if (!quiet) { try { history.replaceState(null, '', '#' + t) } catch (e) { try { location.hash = t } catch (e2) { } } window.scrollTo({ top: 0 }) }
 }
 function bindPages() {
   TABS.forEach(t => { const b = $('#tab-' + t); b.onclick = () => setTab(t); b.onkeydown = e => { const i = TABS.indexOf(t); if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); const n = TABS[(i + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length]; setTab(n); $('#tab-' + n).focus() } } });
   $('#provSel').onchange = e => { st.sel = e.target.value; provPage() };
   document.querySelectorAll('input[name=pm]').forEach(r => r.onchange = () => { st.pmode = $('#pm1').checked ? 'need' : 'seats'; partyPage() });
+  document.querySelectorAll('input[name=ps]').forEach(r => r.onchange = () => { st.pscn = +r.value; partyPage() });
   $('#psort').querySelectorAll('button').forEach(b => b.onclick = () => { st.psort = b.dataset.s; partyPage() });
   $('#tbl').addEventListener('click', e => { const r = e.target.closest('tr[data-k]'); if (r) { st.party = r.dataset.k; setTab('partidos') } });
 }
