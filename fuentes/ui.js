@@ -89,9 +89,8 @@ function chart() {
     const i = KI[k], col = `var(--c-${k})`, tr = [];
     for (let d = d0; d <= dN + 1 + 0.01; d += 0.5) { let sw = 0, sv = 0; act.forEach(r => { const x = pval(r, k, o); if (!isFinite(x)) return; const z = (dayNum(r.p.date) - d) / 9, w = r.p.q * Math.sqrt(Math.min(pollNeff(r.p, o), 2500)) * Math.exp(-z * z / 2); sw += w; sv += w * x }); if (sw > 3) tr.push(`${X(d).toFixed(1)},${Y(sv / sw).toFixed(1)}`) }
     if (tr.length > 1) s += `<polyline points="${tr.join(' ')}" fill="none" stroke="${col}" stroke-width="2.4" stroke-linejoin="round" opacity=".9"/>`;
-    act.forEach(r => { const pv = pval(r, k, o); if (!isFinite(pv)) return; const rad = Math.min(8, 2.6 + 5 * Math.sqrt(r.share * A.act.length) / 2), x = X(dayNum(r.p.date)), y = Y(pv);
-      const tip = `<title>${esc(r.p.name)} · ${dshort(r.p.date)}: ${fmt(pval(r, k, o))}</title>`;
-      s += r.p.src === 'micro' ? `<rect x="${x - rad}" y="${y - rad}" width="${rad * 2}" height="${rad * 2}" fill="${col}" fill-opacity=".35" stroke="${col}" stroke-width="1.5">${tip}</rect>` : `<circle cx="${x}" cy="${y}" r="${rad}" fill="${col}" fill-opacity=".3" stroke="${col}" stroke-width="1.3">${tip}</circle>` });
+    act.forEach((r, ri) => { const pv = pval(r, k, o); if (!isFinite(pv)) return; const rad = Math.min(8, 2.6 + 5 * Math.sqrt(r.share * A.act.length) / 2), x = X(dayNum(r.p.date)), y = Y(pv), da = `data-ri="${ri}" data-k="${k}" class="pt"`;
+      s += r.p.src === 'micro' ? `<rect ${da} x="${x - rad}" y="${y - rad}" width="${rad * 2}" height="${rad * 2}" fill="${col}" fill-opacity=".35" stroke="${col}" stroke-width="1.5"></rect>` : `<circle ${da} cx="${x}" cy="${y}" r="${rad}" fill="${col}" fill-opacity=".3" stroke="${col}" stroke-width="1.3"></circle>` });
     const lo = S.share[i].lo, hi = S.share[i].hi, vN = gv(A.Tnow, k), vF = gv(A.Tfut, k), xN = X(dN), xT = X(dT), xb = o.trend ? xT : xN;
     s += `<line x1="${xN}" y1="${Y(vN)}" x2="${xT}" y2="${Y(vF)}" stroke="${col}" stroke-width="2.4" stroke-dasharray="6 5" opacity=".9"><title>Tendencia hasta el 29-N: ${fmt(vN)} → ${fmt(vF)}</title></line>`;
     s += `<line x1="${xb}" x2="${xb}" y1="${Y(hi)}" y2="${Y(lo)}" stroke="${col}" stroke-width="3" opacity=".45"/>`;
@@ -103,6 +102,23 @@ function chart() {
     const tx = W - m.r + 12; L.forEach(o => s += `<text x="${tx}" y="${o.y + 4}" font-size="11.5" font-weight="600" fill="var(--c-${o.k})">${esc(grp() && o.k === 'SUMAR' ? 'Frente Amplio' : dk(o.k))} ${nf(o.v * 100, 1)}%</text>`);
   }
   svg.innerHTML = s;
+  st.chartAct = act;
+  if (!svg._tip) {
+    svg._tip = true;
+    const tip = document.createElement('div'); tip.id = 'ctip'; tip.hidden = true; document.body.appendChild(tip);
+    const show = e => {
+      const t = e.target.closest && e.target.closest('[data-ri]'); if (!t) { tip.hidden = true; return }
+      const r = st.chartAct[+t.dataset.ri], k = t.dataset.k, o = st.o; if (!r) return;
+      const v = pval(r, k, o), raw = r.he ? pval({ ...r, vec: r.raw }, k, o) : null, p = r.p;
+      tip.innerHTML = `<b>${esc(p.name)}</b><span>${dshort(p.date)} · ${esc(dk(k))} <b>${fmt(v)}</b></span>` + (raw !== null && isFinite(raw) && Math.abs(raw - v) > 0.0005 ? `<span>Publicado ${fmt(raw)}, ajustado por efecto casa</span>` : '') + `<span>${p.src === 'micro' ? 'Recalculada desde microdatos' : 'Encuesta publicada'} · n ${nf(p.n)} · peso ${nf(r.share * 100, 1)} %</span>`;
+      tip.hidden = false;
+      const w = tip.offsetWidth, h = tip.offsetHeight; let x = e.clientX + 14, y = e.clientY - h - 12;
+      if (x + w > innerWidth - 8) x = e.clientX - w - 14; if (x < 8) x = 8; if (y < 8) y = e.clientY + 16;
+      tip.style.left = x + 'px'; tip.style.top = y + 'px';
+    };
+    svg.addEventListener('pointermove', show); svg.addEventListener('pointerdown', show); svg.addEventListener('pointerleave', () => tip.hidden = true);
+    document.addEventListener('scroll', () => tip.hidden = true, { passive: true });
+  }
 }
 
 function trcard() {
