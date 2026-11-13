@@ -153,11 +153,6 @@ small.gd,td.gd{color:var(--good)}small.bd,td.bd{color:var(--bad)}
 .lsd{position:absolute;top:60%;width:12px;height:12px;margin:-4px 0 0 -6px;border-radius:2px}
 .lsl{position:absolute;top:0;font-size:12px;font-weight:600;white-space:nowrap;transform:translateX(0);margin-right:-4px}
 
-.scn{margin:14px 0 4px}
-.cols2s{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:22px;align-items:start}
-@media(max-width:860px){.cols2s{grid-template-columns:minmax(0,1fr)}}
-.scng{display:flex;flex-direction:column;gap:12px}.scng>div{border:1px solid var(--rule);border-radius:6px;padding:10px 12px}.scng b{display:block;font:600 14px var(--f-body)}.scng span{font-size:13px;color:var(--muted)}.scng span b{display:inline;font-size:13px;color:var(--ink)}
-
 .cols2{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:22px;align-items:start}
 @media(max-width:860px){.cols2{grid-template-columns:minmax(0,1fr)}}
 .cols2 .lsg{min-width:0}
@@ -165,3 +160,14 @@ small.gd,td.gd{color:var(--good)}small.bd,td.bd{color:var(--bad)}
 .cols2 .pt th{white-space:normal;letter-spacing:.02em;font-size:10px;padding:0 5px 7px;vertical-align:bottom}
 .cols2 .pt td{padding:5px}
 .cols2 .lsx{white-space:normal}
+
+.scn{margin:14px 0 4px}
+.cols2s{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:22px;align-items:start}
+@media(max-width:860px){.cols2s{grid-template-columns:minmax(0,1fr)}}
+.scng{display:flex;flex-direction:column;gap:12px}.scng>div{border:1px solid var(--rule);border-radius:6px;padding:10px 12px}.scng b{display:block;font:600 14px var(--f-body)}.scng span{font-size:13px;color:var(--muted)}.scng span b{display:inline;font-size:13px;color:var(--ink)}
+
+.navbtn{margin-left:auto;padding:6px 11px;border-radius:3px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);font:500 12px/1.2 var(--f-mono);letter-spacing:.04em;text-transform:none;text-decoration:none}
+.navbtn:hover,.navbtn:focus-visible{border-color:var(--live);color:var(--live)}
+
+#trtbl td.s{font-size:14px}#trtbl th,#trtbl td{padding-left:6px}#trtbl td.d{color:var(--muted);font-size:12.5px}
+@media(max-width:560px){#trtbl{font-size:12px}#trtbl td.s{font-size:12.5px}#trtbl th{font-size:9.5px;letter-spacing:.02em;padding-left:4px}#trtbl td{padding-left:4px}}

@@ -5,8 +5,8 @@ const nf = (x, d = 0) => Number(x).toLocaleString('es-ES', { minimumFractionDigi
 const PN = D.parties, PNAME = {}; PN.forEach(p => PNAME[p.k] = p.name); PNAME.BLANCO = 'En blanco';
 const dshort = s => new Date(s + 'T12:00:00Z').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 const st = { polls: seedPolls(), o: { ...DEFAULTS }, sel: '28', tab: 'resumen', party: 'PP', pmode: 'seats', psort: 'gap', pscn: 0, ver: 0, series: new Set(['PP', 'PSOE', 'VOX', 'SUMAR', 'PODEMOS']), A: null, S: null };
-const LS = 'pop29n-' + D.ver;
-function load() { try { const s = JSON.parse(localStorage.getItem(LS)); if (s && s.polls && s.o) { st.polls = s.polls; Object.assign(st.o, s.o, { ref: DEFAULTS.ref }) } } catch (e) { } }
+const POPM = (window.POP || {}).mode === 'trend', LS = 'pop29n-' + (POPM ? 't-' : '') + D.ver;
+function load() { try { const s = JSON.parse(localStorage.getItem(LS)); if (s && s.polls && s.o) { st.polls = s.polls; Object.assign(st.o, s.o, { ref: DEFAULTS.ref, target: DEFAULTS.target, trend: DEFAULTS.trend }) } } catch (e) { } }
 function save() { try { localStorage.setItem(LS, JSON.stringify({ polls: st.polls, o: st.o })) } catch (e) { } }
 
 let timer = null;
@@ -16,27 +16,29 @@ function compute() {
   const A = aggregate(st.polls, st.o); st.A = A;
   if (!A) { $('#headline').textContent = 'Marca al menos una encuesta con datos completos'; $('#sub').textContent = ''; $('#pill').textContent = 'Sin datos'; return }
   st.S = simulate(A.T, st.o, A.Tsep); st.ver++; st.scn = null;
+  st.S0 = st.o.trend ? simulate(A.Tnow, st.o, A.TsepNow) : null;
   renderAll();
 }
 function renderAll() {
   const { A, S } = st; if (!A || !S) return;
-  head(); votes(); chips(); chart(); seats(); groups(); provPage(); partyPage(); lastPage(); weights(); micro();
-  $('#pill').textContent = 'Poll of polls · ' + new Date(st.o.ref + 'T12:00:00Z').toLocaleDateString('es-ES', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+  head(); votes(); chips(); chart(); seats(); groups(); provPage(); partyPage(); lastPage(); weights(); micro(); trcard();
+  $('#pill').textContent = st.o.trend ? 'Si sigue la tendencia · 29 de noviembre' : 'Poll of polls · ' + new Date(st.o.ref + 'T12:00:00Z').toLocaleDateString('es-ES', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+  const nl = $('#navlink'); if (nl) { nl.href = (window.POP || {}).link || '#'; nl.textContent = st.o.trend ? '← Ver la media de hoy' : 'Ver la proyección a 29-N si sigue la tendencia →' }
 }
-function seatsInt() { return lr(st.S.seats.map(x => x.mean), 350) }
+function seatsInt(S) { return lr((S || st.S).seats.map(x => x.mean), 350) }
 const FACNAME = 'Frente Amplio + confluencias', FACI = () => FACK.map(k => KI[k]);
 const grp = () => !!st.o.group;
 const dnm = i => (grp() && i === KI.SUMAR) ? FACNAME : PN[i].name;
 const dk = k => (grp() && k === 'SUMAR') ? FACNAME : PNAME[k];
-function view() {            // datos de la portada: con las confluencias agrupadas en la casilla de Frente Amplio, o tal cual
-  const { A, S } = st, T = Array.from(A.T), sh = S.share.map(x => ({ ...x })), se = S.seats.map(x => ({ ...x })), rng = { ...A.rng };
+function view(A0, S0) {            // datos de la portada: con las confluencias agrupadas en la casilla de Frente Amplio, o tal cual
+  const A = A0 || st.A, S = S0 || st.S, T = Array.from(A.T), sh = S.share.map(x => ({ ...x })), se = S.seats.map(x => ({ ...x })), rng = { ...A.rng };
   if (grp()) {
     const F = FACI(), z = { mean: 0, lo: 0, hi: 0, med: 0 };
     T[KI.SUMAR] = F.reduce((a, i) => a + A.T[i], 0); sh[KI.SUMAR] = { ...S.facShare }; se[KI.SUMAR] = { ...S.facSeats };
     F.forEach(i => { if (i !== KI.SUMAR) { T[i] = 0; sh[i] = { ...z }; se[i] = { ...z } } });
     const xs = A.act.map(r => facMain(r.vec, st.o, A.adel)); rng.SUMAR = [Math.min(...xs), Math.max(...xs)];
   }
-  const si = seatsInt();      // el redondeo es el de siempre; agrupar solo suma las casillas (así ningún otro partido cambia)
+  const si = seatsInt(S);      // el redondeo es el de siempre; agrupar solo suma las casillas (así ningún otro partido cambia)
   if (grp()) { const F = FACI(); si[KI.SUMAR] = F.reduce((a, i) => a + si[i], 0); F.forEach(i => { if (i !== KI.SUMAR) si[i] = 0 }) }
   return { T, sh, se, rng, si };
 }
@@ -44,11 +46,11 @@ function view() {            // datos de la portada: con las confluencias agrupa
 function head() {
   const { A, S } = st, V = view(), si = V.si;
   const order = si.map((v, i) => i).sort((a, b) => V.se[b].mean - V.se[a].mean), a = order[0], b = order[1];
-  $('#headline').textContent = `La media de encuestas da al ${dnm(a)} ${si[a]} escaños, ${si[a] - si[b]} más que ${KEYS[b] === 'PSOE' ? 'al ' : 'a '}${dnm(b)}`;
+  $('#headline').textContent = st.o.trend ? `Si la tendencia sigue hasta el 29-N, el ${dnm(a)} tendría ${si[a]} escaños, ${si[a] - si[b]} más que ${KEYS[b] === 'PSOE' ? 'el ' : ''}${dnm(b)}` : `La media de encuestas da al ${dnm(a)} ${si[a]} escaños, ${si[a] - si[b]} más que ${KEYS[b] === 'PSOE' ? 'al ' : 'a '}${dnm(b)}`;
   const g = S.groups.find(x => x.id === 'pp_vox_der'), gs = S.groups.find(x => x.id === 'psoe_socios');
   const pt = p => p > 0.99 ? 'más del 99 %' : p < 0.01 ? 'menos del 1 %' : Math.round(p * 100) + ' %';
   const nm = A.act.filter(r => r.p.src === 'micro').length;
-  $('#sub').innerHTML = `Media de <b>${A.act.length}</b> encuestas${nm ? ` (${nm} recalculadas desde microdatos)` : ''}, equivalentes a <b>${nf(A.nEff, 0)}</b> con el mismo peso. PP, Vox y derecha suman <b>${Math.round(g.mean)}</b> escaños y llegan a 176 en <b>${pt(g.p176)}</b> de las simulaciones; PSOE, Frente Amplio y socios, <b>${Math.round(gs.mean)}</b> y <b>${pt(gs.p176)}</b>. No es una predicción.`;
+  $('#sub').innerHTML = `Media de <b>${A.act.length}</b> encuestas${nm ? ` (${nm} recalculadas desde microdatos)` : ''}, equivalentes a <b>${nf(A.nEff, 0)}</b> con el mismo peso. PP, Vox y derecha suman <b>${Math.round(g.mean)}</b> escaños y llegan a 176 en <b>${pt(g.p176)}</b> de las simulaciones; PSOE, Frente Amplio y socios, <b>${Math.round(gs.mean)}</b> y <b>${pt(gs.p176)}</b>. ${st.o.trend ? ' <b>Proyección a 16 días vista</b>: media de hoy más la tendencia de las últimas semanas.' : ''} No es una predicción.`;
 }
 
 function votes() {
@@ -70,10 +72,10 @@ function chips() {
 function pval(r, k, o) { if (grp() && k === 'SUMAR') return facMain(r.vec, o, st.A.adel); if (k === 'SUMAR' || k === 'PODEMOS') return chartMain(r.vec, o)[k]; return r.vec[KI[k]] }
 function chart() {
   const svg = $('#chart'), { A } = st, V = view(), S = { share: V.sh }, o = st.o, keys = [...st.series].filter(k => V.T[KI[k]] > 0 && !(grp() && FACK.includes(k) && k !== 'SUMAR'));
-  const narrow = svg.parentElement.clientWidth < 560, W = narrow ? 480 : 640, H = narrow ? 400 : 560, m = { l: 40, r: narrow ? 14 : 150, t: 14, b: 30 };
+  const narrow = svg.parentElement.clientWidth < 560, W = narrow ? 480 : 640, H = narrow ? 400 : 560, m = { l: 40, r: narrow ? 14 : 165, t: 14, b: 30 }, dN = dayNum(o.ref), dT = dayNum(o.target), gv = (T, k) => (grp() && k === 'SUMAR') ? FACI().reduce((a, i) => a + T[i], 0) : T[KI[k]];
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  const CHW = 100, act = A.act.filter(r => dayNum(r.p.date) >= dayNum(o.ref) - CHW), ds = act.map(r => dayNum(r.p.date)), d0 = Math.min(...ds, dayNum(o.ref) - 20) - 1, d1 = dayNum(o.ref) + 1;
-  const vals = []; keys.forEach(k => { act.forEach(r => { const x = pval(r, k, o); if (isFinite(x)) vals.push(x) }); vals.push(S.share[KI[k]].lo, S.share[KI[k]].hi) });
+  const CHW = 100, act = A.act.filter(r => dayNum(r.p.date) >= dayNum(o.ref) - CHW), ds = act.map(r => dayNum(r.p.date)), d0 = Math.min(...ds, dayNum(o.ref) - 20) - 1, d1 = dT + 1;
+  const vals = []; keys.forEach(k => { act.forEach(r => { const x = pval(r, k, o); if (isFinite(x)) vals.push(x) }); vals.push(S.share[KI[k]].lo, S.share[KI[k]].hi, gv(A.Tnow, k), gv(A.Tfut, k)) });
   let y0 = Math.floor((Math.min(...vals) - 0.004) * 50) / 50, y1 = Math.ceil((Math.max(...vals) + 0.006) * 50) / 50;
   const step = (y1 - y0) > 0.3 ? 0.1 : (y1 - y0) > 0.12 ? 0.05 : 0.02; y0 = Math.max(0, Math.floor(y0 / step) * step); y1 = Math.ceil(y1 / step) * step;
   const X = d => m.l + (d - d0) / (d1 - d0) * (W - m.l - m.r), Y = v => H - m.b - (v - y0) / (y1 - y0) * (H - m.t - m.b);
@@ -81,23 +83,38 @@ function chart() {
   for (let v = y0; v <= y1 + 1e-9; v += step) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--rule)"/><text x="${m.l - 7}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${Math.round(v * 100)}%</text>`;
   const ticks = []; { const stp = (d1 - d0) > 60 ? 14 : 7; let first = Math.ceil(d0); while (new Date(first * MS).getUTCDay() !== 1) first++; for (let d = first; d <= d1; d += stp) ticks.push(d) }
   ticks.forEach(d => s += `<text x="${X(d)}" y="${H - m.b + 18}" text-anchor="middle" font-size="11" fill="var(--muted)">${new Date(d * MS).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</text>`);
+  s += `<line x1="${X(dT)}" x2="${X(dT)}" y1="${m.t}" y2="${H - m.b}" stroke="var(--muted)" stroke-dasharray="2 4" opacity=".6"/><text x="${X(dT) - 4}" y="${m.t + 10}" text-anchor="end" font-size="10.5" fill="var(--muted)">29-N</text>`;
   const labs = [];
   keys.forEach(k => {
     const i = KI[k], col = `var(--c-${k})`, tr = [];
-    for (let d = d0; d <= d1 + 0.01; d += 0.5) { let sw = 0, sv = 0; act.forEach(r => { const x = pval(r, k, o); if (!isFinite(x)) return; const z = (dayNum(r.p.date) - d) / 9, w = r.p.q * Math.sqrt(Math.min(pollNeff(r.p, o), 2500)) * Math.exp(-z * z / 2); sw += w; sv += w * x }); if (sw > 3) tr.push(`${X(d).toFixed(1)},${Y(sv / sw).toFixed(1)}`) }
+    for (let d = d0; d <= dN + 1 + 0.01; d += 0.5) { let sw = 0, sv = 0; act.forEach(r => { const x = pval(r, k, o); if (!isFinite(x)) return; const z = (dayNum(r.p.date) - d) / 9, w = r.p.q * Math.sqrt(Math.min(pollNeff(r.p, o), 2500)) * Math.exp(-z * z / 2); sw += w; sv += w * x }); if (sw > 3) tr.push(`${X(d).toFixed(1)},${Y(sv / sw).toFixed(1)}`) }
     if (tr.length > 1) s += `<polyline points="${tr.join(' ')}" fill="none" stroke="${col}" stroke-width="2.4" stroke-linejoin="round" opacity=".9"/>`;
     act.forEach(r => { const pv = pval(r, k, o); if (!isFinite(pv)) return; const rad = Math.min(8, 2.6 + 5 * Math.sqrt(r.share * A.act.length) / 2), x = X(dayNum(r.p.date)), y = Y(pv);
       const tip = `<title>${esc(r.p.name)} · ${dshort(r.p.date)}: ${fmt(pval(r, k, o))}</title>`;
       s += r.p.src === 'micro' ? `<rect x="${x - rad}" y="${y - rad}" width="${rad * 2}" height="${rad * 2}" fill="${col}" fill-opacity=".35" stroke="${col}" stroke-width="1.5">${tip}</rect>` : `<circle cx="${x}" cy="${y}" r="${rad}" fill="${col}" fill-opacity=".3" stroke="${col}" stroke-width="1.3">${tip}</circle>` });
-    const lo = S.share[i].lo, hi = S.share[i].hi, x = X(d1);
-    s += `<line x1="${x}" x2="${x}" y1="${Y(hi)}" y2="${Y(lo)}" stroke="${col}" stroke-width="3" opacity=".45"/><circle cx="${x}" cy="${Y(V.T[i])}" r="4.2" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>`;
-    labs.push({ y: Y(V.T[i]), k, v: V.T[i] });
+    const lo = S.share[i].lo, hi = S.share[i].hi, vN = gv(A.Tnow, k), vF = gv(A.Tfut, k), xN = X(dN), xT = X(dT), xb = o.trend ? xT : xN;
+    s += `<line x1="${xN}" y1="${Y(vN)}" x2="${xT}" y2="${Y(vF)}" stroke="${col}" stroke-width="2.4" stroke-dasharray="6 5" opacity=".9"><title>Tendencia hasta el 29-N: ${fmt(vN)} → ${fmt(vF)}</title></line>`;
+    s += `<line x1="${xb}" x2="${xb}" y1="${Y(hi)}" y2="${Y(lo)}" stroke="${col}" stroke-width="3" opacity=".45"/>`;
+    s += o.trend ? `<circle cx="${xN}" cy="${Y(vN)}" r="3.6" fill="var(--surface)" stroke="${col}" stroke-width="1.8"/><circle cx="${xT}" cy="${Y(vF)}" r="4.2" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/>` : `<circle cx="${xN}" cy="${Y(vN)}" r="4.2" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/><circle cx="${xT}" cy="${Y(vF)}" r="3.6" fill="var(--surface)" stroke="${col}" stroke-width="1.8"/>`;
+    labs.push({ y: Y(vF), k, v: vF });
   });
   if (!narrow) {
     const L = labs.sort((a, b) => a.y - b.y); for (let n = 1; n < L.length; n++) if (L[n].y - L[n - 1].y < 14) L[n].y = L[n - 1].y + 14;
-    const tx = W - m.r + 12; L.forEach(o => s += `<text x="${tx}" y="${o.y + 4}" font-size="11.5" font-weight="600" fill="var(--c-${o.k})">${esc(dk(o.k))} ${nf(o.v * 100, 1)}%</text>`);
+    const tx = W - m.r + 12; L.forEach(o => s += `<text x="${tx}" y="${o.y + 4}" font-size="11.5" font-weight="600" fill="var(--c-${o.k})">${esc(grp() && o.k === 'SUMAR' ? 'Frente Amplio' : dk(o.k))} ${nf(o.v * 100, 1)}%</text>`);
   }
   svg.innerHTML = s;
+}
+
+function trcard() {
+  const c = $('#trcard'); if (!c) return;
+  if (!st.o.trend || !st.S0 || !st.A) { c.hidden = true; return }
+  c.hidden = false;
+  const A = st.A, V1 = view(), V0 = view({ ...A, T: A.Tnow }, st.S0), b = D.seats2023;
+  const idx = PN.map((p, i) => i).filter(i => i < NPAR && (V1.si[i] > 0 || V0.si[i] > 0 || V1.T[i] > 0.01)).sort((x, y) => V1.se[y].mean - V1.se[x].mean);
+  const dv = x => (x > 0.0005 ? '+' : x < -0.0005 ? '−' : '') + nf(Math.abs(x) * 100, 1), ds = x => (x > 0 ? '+' : x < 0 ? '−' : '') + (Math.abs(x) || '=');
+  $('#trtbl tbody').innerHTML = idx.map(i => `<tr><td><span class="sw" style="background:var(--c-${KEYS[i]})"></span>${esc(dnm(i))}</td><td class="s">${fmt(V0.T[i])}</td><td class="s">${fmt(V1.T[i])}</td><td class="d">${dv(V1.T[i] - V0.T[i])}</td><td class="s">${V0.si[i]}</td><td class="s">${V1.si[i]}</td><td class="d">${ds(V1.si[i] - V0.si[i])}</td></tr>`).join('');
+  const tm = A.trend.main.map(m => `${PNAME[m.k]} ${m.b * 700 >= 0 ? '+' : '−'}${nf(Math.abs(m.b) * 700, 2)}`).join(' · ');
+  $('#trnote').innerHTML = `Pendiente de las últimas semanas (puntos por semana, antes de encoger): ${tm}. A la media de hoy se le suma la pendiente (encogida si no es significativa y limitada al 35 % del nivel de cada partido) durante los ${A.trend.H} días que faltan para las elecciones.`;
 }
 
 function seats() {
@@ -337,10 +354,10 @@ function partyPage() {
     st.scn = { id, T, Tsep, S: simulate(T, st.o, Tsep) };
   }
   st.A = { ...A0, T: st.scn.T, Tsep: st.scn.Tsep }; st.S = st.scn.S;
-  try { partyPageBase(); scnCard(V0, view(), S0, st.S, key) } finally { st.A = A0; st.S = S0 }
+  try { partyPageBase(); scnCard(V0, view(), A0, S0, st.S, key) } finally { st.A = A0; st.S = S0 }
   card.hidden = false;
 }
-function scnCard(V0, V1, S0, S1, key) {
+function scnCard(V0, V1, A0, S0, S1, key) {
   const k = KI[key], nm = dnm(k), x = st.pscn;
   const idx = PN.map((p, i) => i).filter(i => i < NPAR && (V0.si[i] > 0 || V1.si[i] > 0 || V0.T[i] > 0.01 || V1.T[i] > 0.01)).sort((a, b) => V1.se[b].mean - V1.se[a].mean);
   const dl = d => d === 0 ? '<span class="mut">=</span>' : `<b class="${d > 0 ? 'gd' : 'bd'}">${d > 0 ? '+' : '−'}${Math.abs(d)}</b>`;
@@ -353,8 +370,8 @@ function scnCard(V0, V1, S0, S1, key) {
   <div class="tw"><table class="pt mt"><thead><tr><th>Partido</th><th>Voto</th><th>Escaños ahora</th><th>Escenario</th><th>Cambio</th></tr></thead><tbody>${idx.map(i => `<tr${i === k ? ' class="sel"' : ''}><td><span class="sw" style="background:var(--c-${KEYS[i]})"></span> ${esc(dnm(i))}</td><td class="num">${fmt(V0.T[i])} → ${fmt(V1.T[i])}</td><td class="num">${V0.si[i]}</td><td class="num"><b>${V1.si[i]}</b></td><td class="num">${dl(V1.si[i] - V0.si[i])}</td></tr>`).join('')}</tbody></table></div>
   <div class="scng">${[g1, g2].map(g => `<div><b>${esc(g.a.label)}</b><span>${Math.round(g.a.mean)} → <b>${Math.round(g.b.mean)}</b> escaños · mayoría absoluta (176) en ${pt(g.a.p176)} → <b>${pt(g.b.p176)}</b> de las simulaciones</span></div>`).join('')}</div></div>`;
 }
+
 function partyPageBase() {
-  for (const k in NC) delete NC[k];
   const { S, A } = st, V = view(), k = KI[st.party], key = KEYS[k];
   $('#pchips').innerHTML = PN.filter(p => PN.indexOf(p) < NPAR && (V.T[KI[p.k]] > 0) && !hid(KI[p.k])).sort((a, b) => V.se[KI[b.k]].mean - V.se[KI[a.k]].mean).map(p => `<button type="button" class="chip" data-k="${p.k}" aria-pressed="${p.k === st.party}" style="--c:var(--c-${p.k})"><i></i>${esc(dnm(KI[p.k]))} <small>${Math.round(V.se[KI[p.k]].mean)}</small></button>`).join('');
   $('#pchips').querySelectorAll('.chip').forEach(c => c.onclick = () => { st.party = c.dataset.k; partyPage() });
@@ -400,7 +417,7 @@ function lsRivals(j) {
     if (hid(k) || k === hold) continue;
     const r = need(j, k); if (!r.ok || r.share < 0.01) continue;
     const nd = nextNeed(row, SRC(j, k), p.seats, r.c); if (nd === null) continue;
-    const gap = Math.max(0, nd - r.share); if (gap <= LS_MAX) items.push({ k, gap, votes: Math.round(gap * p.valid / 10) * 10 });
+    const gap = Math.max(0, nd - r.share); if (gap <= LS_MAX) items.push({ k, gap, votes: Math.round(gap * p.valid / 100) * 10 });
   }
   items.sort((a, b) => a.gap - b.gap);
   return { p, j, l, hold, items };
@@ -455,16 +472,17 @@ function micro() {
   const cols = ['PP', 'PSOE', 'VOX', 'SUMAR', 'PODEMOS', 'SALF', 'ADELANTE'];
   const row = (lab, v, cls) => `<tr class="${cls || ''}"><td>${lab}</td>${cols.map(k => `<td class="num">${v[k] === undefined ? '–' : nm(v[k])}</td>`).join('')}<td class="num">${v.R === undefined ? '–' : nm(v.R)}</td></tr>`;
   const vv = arr => { const v = {}; cols.forEach(k => v[k] = arr[KI[k]]); v.R = 1 - cols.reduce((a, k) => a + arr[KI[k]], 0); return v };
-  const pub = (pp, ps, vx, su, po, sa) => { const v = { PP: pp / 100, PSOE: ps / 100, VOX: vx / 100 }; if (su !== undefined) { v.SUMAR = su / 100; v.PODEMOS = po / 100; v.SALF = sa / 100; v.R = 1 - (pp + ps + vx + su + po + sa) / 100 } return v };
+  const pub = (pp, ps, vx, su, po, sa) => { const v = { PP: pp / 100, PSOE: ps / 100, VOX: vx / 100 }; if (su !== undefined) { v.SUMAR = su / 100; v.PODEMOS = po / 100; if (sa !== undefined) v.SALF = sa / 100; v.R = 1 - (pp + ps + vx + su + po + (sa || 0)) / 100 } return v };
   let h = `<thead><tr><th>Encuesta y método</th>${cols.map(k => `<th>${esc(PNAME[k])}</th>`).join('')}<th>Resto</th></tr></thead><tbody>`;
   h += `<tr class="grp"><td colspan="9">CIS 3577 · ${nf(mm.cis9.n)} entrevistas</td></tr>` + row('Publicada por el CIS', pub(25.5, 31.0, 16.6, 5.7, 3.7)) + row('Bruta (voto + simpatía)', vv(mm.cis9.A)) + row('Reponderada por recuerdo', vv(mm.cis9.B), o.variant === 'B' ? 'sel' : '') + row('Reponderada + indecisos', vv(mm.cis9.C), o.variant === 'C' ? 'sel' : '');
   h += `<tr class="grp"><td colspan="9">CIS 3582 · ${nf(mm.cis.n)} entrevistas</td></tr>` + row('Publicada por el CIS', pub(22.2, 34.0, 17.1, 6.1, 3.1)) + row('Bruta (voto + simpatía)', vv(mm.cis.A)) + row('Reponderada por recuerdo', vv(mm.cis.B), o.variant === 'B' ? 'sel' : '') + row('Reponderada + indecisos', vv(mm.cis.C), o.variant === 'C' ? 'sel' : '');
   h += `<tr class="grp"><td colspan="9">40dB flash, 7-8 oct · ${nf(mm.d40.n)} entrevistas</td></tr>` + row('Publicada por 40dB', pub(31.9, 28.1, 18.9, 5.3, 2.3, 1.8)) + row('Bruta (intención + afinidad)', vv(mm.d40.A)) + row('Reponderada por recuerdo', vv(mm.d40.B), o.variant === 'B' ? 'sel' : '') + row('Reponderada + indecisos', vv(mm.d40.C), o.variant === 'C' ? 'sel' : '');
+  h += `<tr class="grp"><td colspan="9">40dB preelectoral I, 2-4 nov · ${nf(mm.d40n.n)} entrevistas</td></tr>` + row('Publicada por 40dB', pub(31.9, 29.9, 18.0, 5.0, 1.2, 2.0)) + row('Bruta (intención + afinidad)', vv(mm.d40n.A)) + row('Reponderada por recuerdo', vv(mm.d40n.B), o.variant === 'B' ? 'sel' : '') + row('Reponderada + indecisos', vv(mm.d40n.C), o.variant === 'C' ? 'sel' : '');
   h += `</tbody>`; $('#mt').innerHTML = h;
   // nueva configuración de candidaturas: dónde se integra el voto de Podemos y del espacio ex-Sumar
   const C = D.cfg, tf = st.A.tf, pts = x => nf(x * 100, 1);
   const pr = [['09', 'cat', 'ERC (Cataluña)', tf.podCat], ['10', 'cv', 'Compromís-Front Valencià', tf.podCV], ['05', 'can', 'Unidad del Pueblo Canario', tf.podCan]];
-  let z = `<thead><tr><th>Dónde está el voto de Podemos</th><th>CIS 3582</th><th>40dB flash</th><th>Usado</th><th>Puntos de voto en la media</th></tr></thead><tbody>`;
+  let z = `<thead><tr><th>Dónde está el voto de Podemos</th><th>CIS 3582</th><th>40dB (flash y noviembre)</th><th>Usado</th><th>Puntos de voto en la media</th></tr></thead><tbody>`;
   z += pr.map(([rg, c, lab, pt]) => `<tr><td>Se integra en ${esc(lab)}</td><td class="num">${pts(C.locPodemosCIS[rg])} %</td><td class="num">${pts(C.locPodemos40[rg])} %</td><td class="num">${pts(C.fPod[c])} %</td><td class="num">${nf(pt * 100, 2)}</td></tr>`).join('');
   const sepU = 1 - C.fPod.cat - C.fPod.cv - C.fPod.can;
   z += `<tr class="sel"><td>Concurre por separado (resto de España)</td><td class="num">${pts(1 - pr.reduce((a, x) => a + C.locPodemosCIS[x[0]], 0))} %</td><td class="num">${pts(1 - pr.reduce((a, x) => a + C.locPodemos40[x[0]], 0))} %</td><td class="num">${pts(sepU)} %</td><td class="num">${nf(st.A.T[KI.PODEMOS] * 100, 2)}</td></tr></tbody>`;

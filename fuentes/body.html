@@ -1,6 +1,6 @@
 <div class="wrap">
   <header>
-    <div class="kick"><span>Elecciones generales · 29 de noviembre de 2026</span><span class="pill" id="pill">Poll of polls</span></div>
+    <div class="kick"><span>Elecciones generales · 29 de noviembre de 2026</span><span class="pill" id="pill">Poll of polls</span><a class="navbtn" id="navlink" href="#" target="_blank" rel="noopener"></a></div>
     <h1 id="headline">Calculando la media de encuestas</h1>
     <p class="sub" id="sub"></p>
   </header>
@@ -33,11 +33,17 @@
     </section>
     <section class="card">
       <h2>Qué dice cada encuesta y cómo se ha movido la media</h2>
-      <p class="note">Cada punto es una encuesta (cuadrado si hay microdatos); su tamaño sigue el peso en la media. La línea es la media móvil con ventana de unos diez días (últimos 100 días), y el marcador de la derecha, la estimación actual.</p>
+      <p class="note">Cada punto es una encuesta (cuadrado si hay microdatos); su tamaño sigue el peso en la media. La línea continua es la media móvil con ventana de unos diez días (últimos 100 días). La discontinua sigue la tendencia de las últimas semanas hasta el 29 de noviembre: el círculo relleno es la estimación del modelo (con su margen) y el hueco, el otro extremo.</p>
       <div class="chips" id="chips" role="group" aria-label="Partidos en el gráfico"></div>
       <svg id="chart" viewBox="0 0 640 560" role="img" aria-label="Encuestas por fecha y media estimada por partido"></svg>
     </section>
   </div>
+
+  <section class="card" id="trcard" hidden>
+    <h2>Qué cambia respecto a la media de hoy</h2>
+    <p class="note" id="trnote"></p>
+    <table class="tbl" id="trtbl"><thead><tr><th>Partido</th><th>Voto hoy</th><th>Voto 29-N</th><th>Dif.</th><th>Esc. hoy</th><th>Esc. 29-N</th><th>Dif.</th></tr></thead><tbody></tbody></table>
+  </section>
 
   <section class="card">
     <h2>Escaños proyectados</h2>

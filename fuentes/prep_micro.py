@@ -203,6 +203,37 @@ tr4 = (d4[d4.vote.isin(KEYS) & d4.rec.isin(['PP','PSOE','VOX','SUMAR','ERC','JUN
 tr4 = tr4.div(tr4.sum(axis=1), axis=0)
 res['d40']['trans'] = {r: tr4.loc[r].round(4).to_dict() for r in tr4.index}
 
+
+# ---------- 40dB preelectoral I (2-4 nov, 2.000 entrevistas; se suma a la flash de octubre, no la sustituye) ----------
+d4n = pd.read_excel(UP+'97_Noviembre_2026_ Preelectoral_I/03_Datos_noviembre_2026_preelectoral_I.xlsx')
+P3N = {1:'PSOE',2:'PP',3:'VOX',4:'SUMAR',5:'PODEMOS',6:'SALF',7:'ERC',8:'JUNTS',9:'PNV',10:'BILDU',11:'CC',12:'BNG',13:'UPN',14:'ADELANTE',
+       15:'SUMAR',16:'SUMAR',17:'SUMAR',18:'OTROS',19:'OTROS',20:'OTROS',21:'BLANCO'}   # Compromís-FV, Ara Més-FA y UPC cuentan dentro del espacio Frente Amplio
+def vote4n(r):
+    a = P3N.get(int(r['p3']))
+    if a: return a
+    if int(r['p3']) in (24, 25):            # no lo sé / prefiero no contestar: se usa la afinidad (p4)
+        b = {21:None}.get(int(r['p4']), P3N.get(int(r['p4'])) if int(r['p4']) <= 20 else None)
+        if b and b != 'BLANCO': return b
+        return 'UND'
+    return None                             # nulo / no votaría
+d4n['vote'] = d4n.apply(vote4n, axis=1)
+RECN = {1:'PSOE',2:'PP',3:'VOX',4:'SUMAR',5:'ERC',6:'JUNTS',7:'PNV',8:'BILDU',9:'CC',11:'BNG',14:'UPN',10:'OTROS',12:'OTROS',13:'OTROS',15:'OTROS',16:'OTROS',17:'BN',18:'BN',19:'ABST'}
+d4n['rec'] = d4n.p6.astype(int).map(RECN).fillna('NA')
+d4n['prop'] = d4n.p2.map(lambda x: 0.5 if int(x) == 99 else float(x)/10)
+d4n['reg'] = d4n.ccaa.astype(int).map(lambda x: f'{x:02d}')
+assert d4n.reg.isin(list(reg.index)).all()
+d4n['w0'] = d4n.ponde.astype(float)
+d4n['wB'] = rake(d4n, 'reg', 'w0', 'rec', tg)
+d4n['wBp'] = d4n.wB*d4n.prop
+d4n['wAp'] = d4n.w0
+A4n, B4n, C4n, nA4n, nB4n, nC4n = micro_variants(d4n, d4n.wAp, d4n.wBp)
+print('40dB nov A', (A4n*100).round(1).to_dict()); print('40dB nov B', (B4n*100).round(1).to_dict()); print('40dB nov C', (C4n*100).round(1).to_dict())
+res['d40n'] = {'id':'40dB preelectoral I (microdatos)','n':int(len(d4n)),'field':'2026-11-04','nA':nA4n,'nB':nB4n,
+               'A':A4n.round(5).to_dict(),'B':B4n.round(5).to_dict(),'C':C4n.round(5).to_dict()}
+d4n_reg = {}
+for rg, sub in d4n.groupby('reg'):
+    s_, ne_ = shares(sub, sub.wBp, 'vote'); d4n_reg[rg] = (s_, ne_, len(sub))
+
 # ---------- CEO 1169 (Cataluña) ----------
 ce = pd.read_csv(UP+'ceo_1169/REO1169_microdades_anonimitzades.csv', sep=';', encoding='latin-1', low_memory=False)
 cv = {'PSC/PSOE':'PSOE','PP':'PP','VOX':'VOX','Sumar - En Comú Podem':'SUMAR','Podemos':'PODEMOS','ERC':'ERC','Junts per Catalunya':'JUNTS',
@@ -236,6 +267,9 @@ def loc_frac(p, which):
     out = {}
     for rg in regions_all:
         if which == 'cis': sh = cis_reg[rg][0][p]; ne = cis_reg[rg][1]
+        elif which == 'd40n':
+            if rg not in d4n_reg: out[rg] = None; continue
+            sh = d4n_reg[rg][0][p]; ne = d4n_reg[rg][1]
         else:
             if rg not in d4_reg: out[rg] = None; continue
             sh = d4_reg[rg][0][p]; ne = d4_reg[rg][1]
@@ -246,14 +280,16 @@ def norm(d):
     d = {k: (v if v is not None else 0.0) for k, v in d.items()}; t = sum(d.values()); return {k: v/t for k, v in d.items()}
 loc = {}
 for p in ('PODEMOS','SUMAR','ADELANTE'):
-    a = norm(loc_frac(p,'cis')); b = norm(loc_frac(p,'d40'))
-    na, nb = nB, nB4
+    a = norm(loc_frac(p,'cis')); b1 = norm(loc_frac(p,'d40')); b2 = norm(loc_frac(p,'d40n'))
+    b = {rg: (b1[rg]*nB4 + b2[rg]*nB4n)/(nB4 + nB4n) for rg in regions_all}      # 40dB: flash de octubre + preelectoral de noviembre
+    na, nb = nB, nB4 + nB4n
     loc[p] = {rg: round((a[rg]*na + b[rg]*nb)/(na+nb), 5) for rg in regions_all}
     loc[p+'_cis'] = {rg: round(a[rg],5) for rg in regions_all}
     loc[p+'_d40'] = {rg: round(b[rg],5) for rg in regions_all}
 res['loc'] = loc
 # Adelante Andalucía: cuota entre votantes de Andalucía (media CIS/40dB)
-res['adelante_and'] = {'cis': float(cis_reg['01'][0]['ADELANTE']), 'd40': float(d4_reg['01'][0]['ADELANTE']), 'n_cis': int(cis_reg['01'][2]), 'n_d40': int(d4_reg['01'][2])}
+_n40 = int(d4_reg['01'][2]) + int(d4n_reg['01'][2])
+res['adelante_and'] = {'cis': float(cis_reg['01'][0]['ADELANTE']), 'd40': float((d4_reg['01'][0]['ADELANTE']*d4_reg['01'][2] + d4n_reg['01'][0]['ADELANTE']*d4n_reg['01'][2])/_n40), 'n_cis': int(cis_reg['01'][2]), 'n_d40': _n40}
 print('LOC Podemos', {k:v for k,v in loc['PODEMOS'].items() if v>0.04}); print('LOC Sumar', {k:v for k,v in loc['SUMAR'].items() if v>0.04}); print('Adelante en Andalucía', res['adelante_and'])
 
 cis9_reg = {}
@@ -261,7 +297,7 @@ for rg, sub in cis9.groupby('reg'):
     s9, ne9 = shares(sub, sub.wBp, 'vote'); cis9_reg[rg] = (s9, ne9, len(sub))
 # ---------- factores regionales (swing relativo respecto al nacional) ----------
 # Referencia nacional: media de CIS y 40dB (variante B) para que el sesgo general de cada encuesta no se confunda con efecto regional.
-nat_ref = (B*nB + B4*nB4)/(nB + nB4)
+nat_ref = (B*nB + B4*nB4 + B4n*nB4n)/(nB + nB4 + nB4n)
 TAU = 0.18
 # Vox no concurrió en Santa Cruz de Tenerife en 2023; para medir el cambio regional se imputa su cuota esperada (11,7 %: cuota relativa media de la provincia en noviembre de 2019 y europeas de 2024)
 VOX_TF = 0.117
@@ -292,6 +328,7 @@ for rg in regions:
         ests = [(e1, se1)]
         if rg in cis9_reg and cis9_reg[rg][1] >= 20: ests.append(lnf(cis9_reg[rg][0], cis9_reg[rg][1], b_reg_f.loc[rg], b_nat, B9, p))
         if rg in d4_reg and d4_reg[rg][1] >= 20: ests.append(lnf(d4_reg[rg][0], d4_reg[rg][1], b_reg_f.loc[rg], b_nat, B4, p))
+        if rg in d4n_reg and d4n_reg[rg][1] >= 20: ests.append(lnf(d4n_reg[rg][0], d4n_reg[rg][1], b_reg_f.loc[rg], b_nat, B4n, p))
         if rg == '09':       # añade CEO (referencia: nacional medio de CIS/40dB)
             e2, se2 = lnf(Bc, nBc, b_reg_f.loc[rg], b_nat, nat_ref, p)
             ests.append((e2, se2))

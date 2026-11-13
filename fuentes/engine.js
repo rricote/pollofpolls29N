@@ -80,7 +80,7 @@ function aggregate(polls, o) {
     rows.push(r);
     if (!p.include || p.regional) return;
     const v = pollVec(p, o); if (!v) return;
-    r.vec = v; r.w = pollWeight(p, o); r.ok = r.w > 0; r.hk = houseKey(p);
+    r.vec = v; r.w = pollWeight(p, o); r.ok = r.w > 0; r.w0 = (+p.q || 0) * Math.sqrt(Math.min(pollNeff(p, o), 2500)); r.hk = houseKey(p);
   });
   const act = rows.filter(r => r.ok);
   if (!act.length) return null;
@@ -101,6 +101,7 @@ function aggregate(polls, o) {
   mr.forEach(r => { const s = bi.reduce((a, i) => a + r.vec[i], 0); if (s > 0) { bi.forEach((i, n) => pooled[n] += r.w * r.vec[i] / s); pw += r.w } });
   const rho = bi.map((i, n) => { if (!pw || o.lam <= 0) return 1; const ratio = (pooled[n] / pw) / (b[i] / bB); return Math.pow(Math.min(3, Math.max(0.3, ratio)), o.lam) });
   const q = bi.map((i, n) => b[i] * rho[n]), qs = q.reduce((a, x) => a + x, 0);
+  const fin = (m5, salf, adel, Rb) => {
   let block = bB * (1 + o.blockShift), blank = b[KI.BLANCO], oth = Rb - block - blank;
   if (oth < 0.005) { const need = 0.005 - oth, f = (block + blank - need) / (block + blank); block *= f; blank *= f; oth = 0.005 }
   const T = new Array(NK).fill(0);
@@ -114,7 +115,7 @@ function aggregate(polls, o) {
   T[KI.ERC] += pod * C.fPod.cat; T[KI.SUMAR] = fa * (1 - tr); T[KI.PODEMOS] = pod * (1 - C.fPod.cat - C.fPod.cv - C.fPod.can);
   const tf = { podCat: pod * C.fPod.cat, podCV: pod * C.fPod.cv, podCan: pod * C.fPod.can, faCV: fa * C.wFA.cv, faCan: fa * C.wFA.can };
   const Tsep = T.slice(); { const ts = Tsep.reduce((a, x) => a + x, 0); for (let i = 0; i < NK; i++) Tsep[i] /= ts }
-  UNITY_R = T[KI.SUMAR] > 0 ? T[KI.PODEMOS] / T[KI.SUMAR] : 0;   // peso del Podemos propio frente a Frente Amplio, para repartir la lista unitaria en provincias
+  const ur = T[KI.SUMAR] > 0 ? T[KI.PODEMOS] / T[KI.SUMAR] : 0;   // peso del Podemos propio frente a Frente Amplio, para repartir la lista unitaria en provincias
   if (o.unity) {
     // las listas donde Podemos/ex-Sumar ya van integrados (ERC, Compromís, UPC) no se ven afectadas por la unidad
     const FIX = [KI.ERC, KI.COMPROMIS, KI.UPC], fx = FIX.reduce((a, i) => a + T[i], 0);
@@ -122,11 +123,31 @@ function aggregate(polls, o) {
     for (let i = 0; i < NK; i++) if (!FIX.includes(i)) T[i] *= f; T[KI.SUMAR] = nS; T[KI.PODEMOS] = 0;
   }
   const tot = T.reduce((a, x) => a + x, 0); for (let i = 0; i < NK; i++) T[i] /= tot;
+  return { T, Tsep, tf, ur };
+  };
+  // tendencia: recta ponderada sobre las encuestas de las últimas semanas, desplazada desde el centro de la media hasta el día de las elecciones
+  const TR = o.trendCfg || { half: 21, maxAge: 56 }, H = Math.max(0, dayNum(o.target || '2026-11-29') - dayNum(o.ref));
+  const tfit = (get) => {
+    const it = []; act.forEach(r => { const y = get(r), x = dayNum(r.p.date) - dayNum(o.ref), ag = -x; if (!isFinite(y) || ag > TR.maxAge) return; it.push({ x, y, w: r.w0 * Math.pow(0.5, Math.max(0, ag) / TR.half) }) });
+    const sw = it.reduce((a, t) => a + t.w, 0); if (it.length < 6 || sw <= 0) return { d: 0, b: 0, se: 0, f: 0 };
+    it.forEach(t => t.w /= sw); const xm = it.reduce((a, t) => a + t.w * t.x, 0), ym = it.reduce((a, t) => a + t.w * t.y, 0);
+    const sxx = it.reduce((a, t) => a + t.w * (t.x - xm) ** 2, 0), sxy = it.reduce((a, t) => a + t.w * (t.x - xm) * (t.y - ym), 0), ne = 1 / it.reduce((a, t) => a + t.w * t.w, 0);
+    if (sxx < 4) return { d: 0, b: 0, se: 0, f: 0 };
+    const b = sxy / sxx, s2 = it.reduce((a, t) => a + t.w * (t.y - ym - b * (t.x - xm)) ** 2, 0) * ne / Math.max(1, ne - 2), se = 1.5 * Math.sqrt(s2 / (ne * sxx));   // x1,5: los errores de una misma casa están correlacionados
+    const f = b * b > 0 ? Math.max(0, 1 - se * se / (b * b)) : 0;       // encogimiento: la pendiente pierde peso cuanto menos significativa es
+    return { d: f * b * (H - xm), b, se, f, xm };
+  };
+  const tfM = MAIN5.map(k => tfit(r => r.vec[KI[k]])), tfS = tfit(r => r.vec[KI.SALF]), tfA = tfit(r => r.vec[KI.ADELANTE]);
+  const cap = (d, lv) => Math.max(-0.35 * lv, Math.min(0.35 * lv, d));      // la tendencia no mueve a un partido más de un 35 % de su nivel
+  const dM = tfM.map((t, i) => cap(t.d, m5[i])), dS = cap(tfS.d, salf), dA = cap(tfA.d, adel);
+  const dRb = -(dM.reduce((a, x) => a + x, 0) + dS + dA);
+  const now = fin(m5, salf, adel, Rb), fut = fin(m5.map((x, i) => x + dM[i]), salf + dS, adel + dA, Rb + dRb);
+  const pick = o.trend ? fut : now; UNITY_R = pick.ur; const { T, Tsep, tf } = pick;
   // dispersión entre encuestas por partido
   const rng = {}; ['PP', 'PSOE', 'VOX', 'SUMAR', 'PODEMOS'].forEach(k => { const xs = act.map(r => r.vec[KI[k]]); rng[k] = [Math.min(...xs), Math.max(...xs)] });
   const nEff = W * W / act.reduce((a, r) => a + r.w * r.w, 0);
   rows.forEach(r => r.share = r.ok ? r.w / W : 0);
-  return { T, Tsep, rows, act, rng, HE, tf, adel, nEff, salf, Rb, rho: Object.fromEntries(BLOCK.map((k, n) => [k, rho[n]])), W };
+  return { T, Tsep, rows, act, rng, HE, tf, adel, nEff, salf, Rb, Tnow: now.T, Tfut: fut.T, TsepNow: now.Tsep, TsepFut: fut.Tsep, trend: { H, main: MAIN5.map((k, i) => ({ k, ...tfM[i], d: dM[i] })), salf: { ...tfS, d: dS }, adel: { ...tfA, d: dA } }, rho: Object.fromEntries(BLOCK.map((k, n) => [k, rho[n]])), W };
 }
 
 /* ---- reparto a provincias: swing proporcional sobre 2023 con ajuste regional y calibrado a los objetivos nacionales ---- */
@@ -241,10 +262,11 @@ function seedPolls() {
   ps.push({ id: 'cis3577', name: 'CIS 3577 (microdatos)', date: '2026-09-03', n: D.micro.cis9.n, v: {}, q: 1, include: true, src: 'micro', mk: 'cis9', note: 'Barómetro de septiembre (campo 1-4 sep); reponderado por recuerdo de voto 2023' });
   ps.push({ id: 'cis3582', name: 'CIS 3582 (microdatos)', date: '2026-10-06', n: D.micro.cis.n, v: {}, q: 1, include: true, src: 'micro', mk: 'cis', note: 'Barómetro de octubre (campo 1-6 oct); reponderado por recuerdo de voto 2023' });
   ps.push({ id: 'd40flash', name: '40dB flash (microdatos)', date: '2026-10-08', n: D.micro.d40.n, v: {}, q: 1, include: true, src: 'micro', mk: 'd40', note: 'Flash 7-8 oct; sin Ceuta y Melilla' });
+  ps.push({ id: 'd40nov', name: '40dB preelectoral I (microdatos)', date: '2026-11-04', n: D.micro.d40n.n, v: {}, q: 1, include: true, src: 'micro', mk: 'd40n', note: 'Preelectoral I, campo 2-4 nov (CAWI, 2.000 entrevistas); se suma a la flash de octubre, no la sustituye; sin Ceuta y Melilla' });
   ps.push({ id: 'ceo1169', name: 'CEO 1169 (solo Cataluña)', date: '2026-09-16', n: D.micro.ceo.n, v: {}, q: 1, include: false, src: 'micro', mk: 'ceo', regional: true, note: 'No entra en la media nacional: refuerza los factores de Cataluña' });
   return ps;
 }
-const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.40, sdProv: 0.05, lam: 0.35, house: 1, group: true, blockShift: 0, ref: '2026-11-09' };
+const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.40, sdProv: 0.05, lam: 0.35, house: 1, group: true, blockShift: 0, ref: '2026-11-13', target: '2026-11-29', trend: (window.POP || {}).mode === 'trend' };
 
 /* ---- voto necesario para escaño (D'Hondt, resto de partidos escalados en proporción) ---- */
 const _out = new Int16Array(NPAR);
