@@ -263,10 +263,11 @@ function seedPolls() {
   ps.push({ id: 'cis3582', name: 'CIS 3582 (microdatos)', date: '2026-10-06', n: D.micro.cis.n, v: {}, q: 1, include: true, src: 'micro', mk: 'cis', note: 'Barómetro de octubre (campo 1-6 oct); reponderado por recuerdo de voto 2023' });
   ps.push({ id: 'd40flash', name: '40dB flash (microdatos)', date: '2026-10-08', n: D.micro.d40.n, v: {}, q: 1, include: true, src: 'micro', mk: 'd40', note: 'Flash 7-8 oct; sin Ceuta y Melilla' });
   ps.push({ id: 'd40nov', name: '40dB preelectoral I (microdatos)', date: '2026-11-04', n: D.micro.d40n.n, v: {}, q: 1, include: true, src: 'micro', mk: 'd40n', note: 'Preelectoral I, campo 2-4 nov (CAWI, 2.000 entrevistas); se suma a la flash de octubre, no la sustituye; sin Ceuta y Melilla' });
+  ps.push({ id: 'd40trk', name: '40dB tracking diario (microdatos)', date: '2026-11-16', n: D.micro.d40t.n, v: {}, q: 1, include: true, src: 'micro', mk: 'd40t', note: 'Tracking diario, campo 10-16 nov (CAWI): entrega 4 (2.500 entrevistas) más las 462 nuevas de la entrega 5 (ventana móvil de 2.000); sin entrevistas repetidas; sin Ceuta y Melilla' });
   ps.push({ id: 'ceo1169', name: 'CEO 1169 (solo Cataluña)', date: '2026-09-16', n: D.micro.ceo.n, v: {}, q: 1, include: false, src: 'micro', mk: 'ceo', regional: true, note: 'No entra en la media nacional: refuerza los factores de Cataluña' });
   return ps;
 }
-const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.40, sdProv: 0.05, lam: 0.35, house: 1, group: true, blockShift: 0, ref: '2026-11-16', target: '2026-11-29', trend: (window.POP || {}).mode === 'trend' };
+const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.40, sdProv: 0.05, lam: 0.35, house: 1, group: true, blockShift: 0, ref: '2026-11-17', target: '2026-11-29', trend: (window.POP || {}).mode === 'trend' };
 
 /* ---- voto necesario para escaño (D'Hondt, resto de partidos escalados en proporción) ---- */
 const _out = new Int16Array(NPAR);

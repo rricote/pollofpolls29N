@@ -234,6 +234,62 @@ d4n_reg = {}
 for rg, sub in d4n.groupby('reg'):
     s_, ne_ = shares(sub, sub.wBp, 'vote'); d4n_reg[rg] = (s_, ne_, len(sub))
 
+
+# ---------- 40dB tracking diario (microdatos; entregas 4 y 5 unidas sin duplicar entrevistas) ----------
+# Entrega 4: 2.500 entrevistas acumuladas (campo 10-15 nov). Entrega 5: ventana móvil de las últimas 2.000 (4 días, 13-16 nov).
+# Las dos comparten 1.500 entrevistas (13-15 nov); se detectan por sus respuestas y de la entrega 5 solo se añaden las nuevas (día 16).
+import zipfile, io
+def _trk(n):
+    z = zipfile.ZipFile(UP+f'40db tracking diario/40dB_tracking_dia0{n}.zip')
+    nm = [x for x in z.namelist() if x.endswith(f'03_Datos_tracking_dia{n}.xlsx') and '__MACOSX' not in x][0]
+    return pd.read_excel(io.BytesIO(z.read(nm)))
+_t4, _t5 = _trk(4), _trk(5)
+_cols = [c for c in _t4.columns if c not in ('id', 'ponde')]
+_fp = lambda d: pd.Series(['|'.join('' if pd.isna(v) else str(v) for v in r) for r in d[_cols].itertuples(index=False)], index=d.index)
+_new5 = _t5[~_fp(_t5).isin(set(_fp(_t4)))]
+print('tracking: entrega 4', len(_t4), '+ nuevas de la entrega 5', len(_new5))
+d4t = pd.concat([_t4, _new5], ignore_index=True)
+def _k40t(x):
+    x = str(x)
+    for key, k in (('PSOE','PSOE'),('PP (Partido','PP'),('UPN-PP','UPN'),('Vox','VOX'),('Frente Amplio','SUMAR'),('Compromís','SUMAR'),('Ara Més','SUMAR'),('Unidad del Pueblo Canario','SUMAR'),
+                   ('Podemos','PODEMOS'),('SALF','SALF'),('ERC','ERC'),('JxCAT','JUNTS'),('EAJ','PNV'),('EH Bildu','BILDU'),('Coalición Canaria','CC'),('BNG','BNG'),
+                   ('Adelante Andalucía','ADELANTE'),('Teruel Existe','OTROS'),('Soria Ya','OTROS'),('Otro','OTROS'),('Votaría en blanco','BLANCO')):
+        if x.startswith(key): return k
+    return None
+def vote4t(r):
+    a = _k40t(r['p2'])
+    if a: return a
+    if str(r['p2']) in ('No lo sé', 'Prefiero no contestar'):       # sin intención: se usa la afinidad (p3)
+        b = _k40t(r['p3'])
+        if b and b != 'BLANCO': return b
+        return 'UND'
+    return None                                                      # nulo / no votaría
+d4t['vote'] = d4t.apply(vote4t, axis=1)
+def _rec4t(x):
+    x = str(x)
+    for key, k in (('PSOE','PSOE'),('PP (Partido','PP'),('Vox','VOX'),('Sumar','SUMAR'),('ERC','ERC'),('JxCAT','JUNTS'),('EAJ','PNV'),('EH Bildu','BILDU'),('Coalición Canaria','CC'),
+                   ('BNG','BNG'),('UPN','UPN'),('Voté en blanco','BN'),('Voté nulo','BN'),('No voté','ABST'),('CUP','OTROS'),('España Vaciada','OTROS'),('Nueva Canarias','OTROS'),('UPL','OTROS'),('Otro','OTROS')):
+        if x.startswith(key): return k
+    return 'NA'
+d4t['rec'] = d4t.p5.map(_rec4t)
+d4t['prop'] = d4t.p1.map(lambda x: 0.5 if str(x).startswith('No lo') else float(str(x).split()[0])/10)
+_CC = {'Andalucía':'01','Aragón':'02','Asturias, Principado de':'03','Balears, Illes':'04','Canarias':'05','Cantabria':'06','Castilla y León':'07','Castilla - La Mancha':'08','Cataluña':'09',
+       'Comunitat Valenciana':'10','Extremadura':'11','Galicia':'12','Madrid, Comunidad de':'13','Murcia, Región de':'14','Navarra, Comunidad Foral de':'15','País Vasco':'16','Rioja, La':'17'}
+d4t['reg'] = d4t.ccaa.map(_CC)
+assert d4t.reg.notna().all() and d4t.reg.isin(list(reg.index)).all()
+d4t['w0'] = d4t.ponde.astype(float)
+d4t['wB'] = rake(d4t, 'reg', 'w0', 'rec', tg)
+d4t['wBp'] = d4t.wB*d4t.prop
+d4t['wAp'] = d4t.w0
+A4t, B4t, C4t, nA4t, nB4t, nC4t = micro_variants(d4t, d4t.wAp, d4t.wBp)
+print('40dB trk A', (A4t*100).round(1).to_dict()); print('40dB trk B', (B4t*100).round(1).to_dict()); print('40dB trk C', (C4t*100).round(1).to_dict())
+print('rec', d4t.rec.value_counts().to_dict()); print('vote', d4t.vote.value_counts().to_dict())
+res['d40t'] = {'id':'40dB tracking diario (microdatos)','n':int(len(d4t)),'field':'2026-11-16','nA':nA4t,'nB':nB4t,
+               'A':A4t.round(5).to_dict(),'B':B4t.round(5).to_dict(),'C':C4t.round(5).to_dict()}
+d4t_reg = {}
+for rg, sub in d4t.groupby('reg'):
+    s_, ne_ = shares(sub, sub.wBp, 'vote'); d4t_reg[rg] = (s_, ne_, len(sub))
+
 # ---------- CEO 1169 (Cataluña) ----------
 ce = pd.read_csv(UP+'ceo_1169/REO1169_microdades_anonimitzades.csv', sep=';', encoding='latin-1', low_memory=False)
 cv = {'PSC/PSOE':'PSOE','PP':'PP','VOX':'VOX','Sumar - En Comú Podem':'SUMAR','Podemos':'PODEMOS','ERC':'ERC','Junts per Catalunya':'JUNTS',
@@ -267,6 +323,9 @@ def loc_frac(p, which):
     out = {}
     for rg in regions_all:
         if which == 'cis': sh = cis_reg[rg][0][p]; ne = cis_reg[rg][1]
+        elif which == 'd40t':
+            if rg not in d4t_reg: out[rg] = None; continue
+            sh = d4t_reg[rg][0][p]; ne = d4t_reg[rg][1]
         elif which == 'd40n':
             if rg not in d4n_reg: out[rg] = None; continue
             sh = d4n_reg[rg][0][p]; ne = d4n_reg[rg][1]
@@ -280,16 +339,16 @@ def norm(d):
     d = {k: (v if v is not None else 0.0) for k, v in d.items()}; t = sum(d.values()); return {k: v/t for k, v in d.items()}
 loc = {}
 for p in ('PODEMOS','SUMAR','ADELANTE'):
-    a = norm(loc_frac(p,'cis')); b1 = norm(loc_frac(p,'d40')); b2 = norm(loc_frac(p,'d40n'))
-    b = {rg: (b1[rg]*nB4 + b2[rg]*nB4n)/(nB4 + nB4n) for rg in regions_all}      # 40dB: flash de octubre + preelectoral de noviembre
-    na, nb = nB, nB4 + nB4n
+    a = norm(loc_frac(p,'cis')); b1 = norm(loc_frac(p,'d40')); b2 = norm(loc_frac(p,'d40n')); b3 = norm(loc_frac(p,'d40t'))
+    b = {rg: (b1[rg]*nB4 + b2[rg]*nB4n + b3[rg]*nB4t)/(nB4 + nB4n + nB4t) for rg in regions_all}      # 40dB: flash de octubre + preelectoral de noviembre + tracking
+    na, nb = nB, nB4 + nB4n + nB4t
     loc[p] = {rg: round((a[rg]*na + b[rg]*nb)/(na+nb), 5) for rg in regions_all}
     loc[p+'_cis'] = {rg: round(a[rg],5) for rg in regions_all}
     loc[p+'_d40'] = {rg: round(b[rg],5) for rg in regions_all}
 res['loc'] = loc
 # Adelante Andalucía: cuota entre votantes de Andalucía (media CIS/40dB)
-_n40 = int(d4_reg['01'][2]) + int(d4n_reg['01'][2])
-res['adelante_and'] = {'cis': float(cis_reg['01'][0]['ADELANTE']), 'd40': float((d4_reg['01'][0]['ADELANTE']*d4_reg['01'][2] + d4n_reg['01'][0]['ADELANTE']*d4n_reg['01'][2])/_n40), 'n_cis': int(cis_reg['01'][2]), 'n_d40': _n40}
+_n40 = int(d4_reg['01'][2]) + int(d4n_reg['01'][2]) + int(d4t_reg['01'][2])
+res['adelante_and'] = {'cis': float(cis_reg['01'][0]['ADELANTE']), 'd40': float((d4_reg['01'][0]['ADELANTE']*d4_reg['01'][2] + d4n_reg['01'][0]['ADELANTE']*d4n_reg['01'][2] + d4t_reg['01'][0]['ADELANTE']*d4t_reg['01'][2])/_n40), 'n_cis': int(cis_reg['01'][2]), 'n_d40': _n40}
 print('LOC Podemos', {k:v for k,v in loc['PODEMOS'].items() if v>0.04}); print('LOC Sumar', {k:v for k,v in loc['SUMAR'].items() if v>0.04}); print('Adelante en Andalucía', res['adelante_and'])
 
 cis9_reg = {}
@@ -297,7 +356,7 @@ for rg, sub in cis9.groupby('reg'):
     s9, ne9 = shares(sub, sub.wBp, 'vote'); cis9_reg[rg] = (s9, ne9, len(sub))
 # ---------- factores regionales (swing relativo respecto al nacional) ----------
 # Referencia nacional: media de CIS y 40dB (variante B) para que el sesgo general de cada encuesta no se confunda con efecto regional.
-nat_ref = (B*nB + B4*nB4 + B4n*nB4n)/(nB + nB4 + nB4n)
+nat_ref = (B*nB + B4*nB4 + B4n*nB4n + B4t*nB4t)/(nB + nB4 + nB4n + nB4t)
 TAU = 0.18
 # Vox no concurrió en Santa Cruz de Tenerife en 2023; para medir el cambio regional se imputa su cuota esperada (11,7 %: cuota relativa media de la provincia en noviembre de 2019 y europeas de 2024)
 VOX_TF = 0.117
@@ -329,6 +388,7 @@ for rg in regions:
         if rg in cis9_reg and cis9_reg[rg][1] >= 20: ests.append(lnf(cis9_reg[rg][0], cis9_reg[rg][1], b_reg_f.loc[rg], b_nat, B9, p))
         if rg in d4_reg and d4_reg[rg][1] >= 20: ests.append(lnf(d4_reg[rg][0], d4_reg[rg][1], b_reg_f.loc[rg], b_nat, B4, p))
         if rg in d4n_reg and d4n_reg[rg][1] >= 20: ests.append(lnf(d4n_reg[rg][0], d4n_reg[rg][1], b_reg_f.loc[rg], b_nat, B4n, p))
+        if rg in d4t_reg and d4t_reg[rg][1] >= 20: ests.append(lnf(d4t_reg[rg][0], d4t_reg[rg][1], b_reg_f.loc[rg], b_nat, B4t, p))
         if rg == '09':       # añade CEO (referencia: nacional medio de CIS/40dB)
             e2, se2 = lnf(Bc, nBc, b_reg_f.loc[rg], b_nat, nat_ref, p)
             ests.append((e2, se2))
