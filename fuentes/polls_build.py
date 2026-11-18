@@ -117,13 +117,19 @@ add('NC Report / La Razón', '2026-11-12', 1000, V(32.1, 26.1, 19.0, 7.6, 1.5, N
 add('IMOP Insights / El Confidencial', '2026-11-13', 1000, V(31.5, 26.9, 19.0, 6.9, 0.9, 1.6, ERC=2.9, BILDU=1.7, BNG=1.3, ADELANTE=2.2), note='Cuarta oleada, campo 10-13 nov, publicada el 16 nov. Muestra no indicada (se supone 1.000). FA incluye Compromís-FV (7 + 4 escaños)')
 # --- nuevas 16 nov ---
 add('40dB / El País-SER', '2026-11-16', 2000, V(31.8, 30.6, 17.5, 5.4, 1.1, 1.6), inc=False, note='Tracking diario, entrega del 17 nov (campo 12-16 nov, 2.000 entrevistas). FA 3,7 + otras coaliciones 1,7. Sustituida por los microdatos del tracking (fila propia); actívala para usar el dato publicado')
-add('SW Demoscopia / La Séptima', '2026-11-16', 9000, V(28.6, 31.8, 16.8, 7.4, 1.7, 2.0, ADELANTE=1.5), q=0.8, note='Tracking diario móvil, entrega del 16 nov (muestra 9.000). Solo se usa la última entrega porque comparten entrevistas')
-add('Sigma Dos / El Mundo', '2026-11-16', 3002, V(30.8, 26.1, 19.8, 8.3, 1.4, None, ADELANTE=1.8), note='Entrega del 16 nov (muestra 3.002, ventana móvil); SALF no publicada. Sustituye a la del 15 nov')
-add('EM-Analytics / Electomanía', '2026-11-16', 3294, V(30.5, 26.9, 18.9, 7.7, 1.2, 2.2, ADELANTE=1.5), q=0.85, note='ElectoPanel 16 nov (panel online, muestra 3.294). Comparte entrevistas con las entregas diarias anteriores: solo se usa la última')
-add('Sondaxe / La Voz de Galicia', '2026-11-16', 1000, V(30.2, 26.7, 17.6, 6.5, 2.2, None, ADELANTE=1.8), note='Publicada el 16 nov. Campo no indicado; SALF no publicada. Sustituye a la del 15 nov')
+add('SW Demoscopia / La Séptima', '2026-11-16', 9000, V(28.6, 31.8, 16.8, 7.4, 1.7, 2.0, ADELANTE=1.5), q=0.8, inc=False, note='Tracking diario móvil, entrega del 16 nov (muestra 9.000). Solo se usa la última entrega porque comparten entrevistas' + '. Sustituida por la entrega del 17 nov')
+add('Sigma Dos / El Mundo', '2026-11-16', 3002, V(30.8, 26.1, 19.8, 8.3, 1.4, None, ADELANTE=1.8), inc=False, note='Entrega del 16 nov (muestra 3.002, ventana móvil); SALF no publicada. Sustituye a la del 15 nov' + '. Sustituida por la entrega del 17 nov')
+add('EM-Analytics / Electomanía', '2026-11-16', 3294, V(30.5, 26.9, 18.9, 7.7, 1.2, 2.2, ADELANTE=1.5), q=0.85, inc=False, note='ElectoPanel 16 nov (panel online, muestra 3.294). Comparte entrevistas con las entregas diarias anteriores: solo se usa la última' + '. Sustituida por la entrega del 17 nov')
+add('Sondaxe / La Voz de Galicia', '2026-11-16', 1000, V(30.2, 26.7, 17.6, 6.5, 2.2, None, ADELANTE=1.8), inc=False, note='Publicada el 16 nov. Campo no indicado; SALF no publicada. Sustituye a la del 15 nov' + '. Sustituida por la entrega del 17 nov')
 add('Target Point / El Debate', '2026-11-16', 1013, V(30.6, 27.0, 18.7, 7.3, 1.6, 2.1, ADELANTE=1.9), note='Publicada el 16 nov. Campo no indicado')
 add('Data10 / OKdiario', '2026-11-16', 1500, V(31.7, 25.5, 20.4, 6.7, 2.1, 1.5, ADELANTE=1.7), note='Publicada el 16 nov. Campo no indicado')
 add('InvyMark / laSexta', '2026-11-16', 1000, {'PP': 32.2, 'PSOE': 28.2, 'VOX': 19.1, 'FA': 6.4}, inc=False, note='Publicada el 16 nov. No publica Podemos (no puede entrar en la media); muestra no indicada. Casa dudosa en entregas anteriores')
+# --- nuevas 17-18 nov ---
+add('40dB / El País-SER', '2026-11-17', 2000, V(32.2, 30.7, 17.0, 5.2, 1.2, 1.7), inc=False, note='Tracking diario, entrega del 18 nov (campo 13-17 nov, 2.000 entrevistas). FA 3,5 + otras coaliciones 1,7. Sustituida por los microdatos del tracking (fila propia); actívala para usar el dato publicado')
+add('SW Demoscopia / La Séptima', '2026-11-17', 9500, V(29.1, 31.9, 16.5, 7.3, 1.7, 2.0, ADELANTE=1.5), q=0.8, note='Tracking diario móvil, entrega del 17 nov (muestra 9.500). La web solo da PP, PSOE, Vox y FA; Podemos, SALF y Adelante son de la entrega del 16 nov. Solo se usa la última entrega porque comparten entrevistas')
+add('Sigma Dos / El Mundo', '2026-11-17', 3759, V(30.7, 26.4, 19.8, 6.7, 1.2, None, ADELANTE=1.8), note='Entrega del 17 nov (muestra 3.759, ventana móvil); SALF no publicada. Sustituye a la del 16 nov')
+add('EM-Analytics / Electomanía', '2026-11-17', 4446, V(30.8, 27.0, 18.8, 7.7, 1.3, 2.2, ADELANTE=1.5), q=0.85, note='ElectoPanel 17 nov (panel online, muestra 4.446). Comparte entrevistas con las entregas diarias anteriores: solo se usa la última')
+add('Sondaxe / La Voz de Galicia', '2026-11-17', 1000, V(29.7, 26.7, 18.0, 7.7, 2.1, 3.0, ADELANTE=1.6), note='Publicada el 17 nov (la fuente enlaza una ruta del 16 nov: la fecha puede variar un día). Campo no indicado. Sustituye a la del 16 nov')
 # --- histórico: electografica.com (agregador) ---
 def have(name, date): return any(p['name'] == canon(name) and p['date'] == date for p in polls)
 SKIP = set()
