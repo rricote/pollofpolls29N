@@ -243,12 +243,14 @@ def _trk(n):
     z = zipfile.ZipFile(UP+f'40db tracking diario/40dB_tracking_dia0{n}.zip')
     nm = [x for x in z.namelist() if x.endswith(f'03_Datos_tracking_dia{n}.xlsx') and '__MACOSX' not in x][0]
     return pd.read_excel(io.BytesIO(z.read(nm)))
-_t4, _t5 = _trk(4), _trk(5)
+_t4 = _trk(4)
 _cols = [c for c in _t4.columns if c not in ('id', 'ponde')]
 _fp = lambda d: pd.Series(['|'.join('' if pd.isna(v) else str(v) for v in r) for r in d[_cols].itertuples(index=False)], index=d.index)
-_new5 = _t5[~_fp(_t5).isin(set(_fp(_t4)))]
-print('tracking: entrega 4', len(_t4), '+ nuevas de la entrega 5', len(_new5))
-d4t = pd.concat([_t4, _new5], ignore_index=True)
+_parts = [_t4]; _seen = set(_fp(_t4))
+for _n in (5, 6):          # entregas móviles de 2.000 (campo de los últimos 4-5 días): se añaden solo las entrevistas que no estaban
+    _t = _trk(_n); _k = _fp(_t); _nw = _t[~_k.isin(_seen)]
+    print('tracking: entrega', _n, len(_t), '-> nuevas', len(_nw)); _parts.append(_nw); _seen |= set(_k)
+d4t = pd.concat(_parts, ignore_index=True)
 def _k40t(x):
     x = str(x)
     for key, k in (('PSOE','PSOE'),('PP (Partido','PP'),('UPN-PP','UPN'),('Vox','VOX'),('Frente Amplio','SUMAR'),('Compromís','SUMAR'),('Ara Més','SUMAR'),('Unidad del Pueblo Canario','SUMAR'),
@@ -284,7 +286,7 @@ d4t['wAp'] = d4t.w0
 A4t, B4t, C4t, nA4t, nB4t, nC4t = micro_variants(d4t, d4t.wAp, d4t.wBp)
 print('40dB trk A', (A4t*100).round(1).to_dict()); print('40dB trk B', (B4t*100).round(1).to_dict()); print('40dB trk C', (C4t*100).round(1).to_dict())
 print('rec', d4t.rec.value_counts().to_dict()); print('vote', d4t.vote.value_counts().to_dict())
-res['d40t'] = {'id':'40dB tracking diario (microdatos)','n':int(len(d4t)),'field':'2026-11-16','nA':nA4t,'nB':nB4t,
+res['d40t'] = {'id':'40dB tracking diario (microdatos)','n':int(len(d4t)),'field':'2026-11-17','nA':nA4t,'nB':nB4t,
                'A':A4t.round(5).to_dict(),'B':B4t.round(5).to_dict(),'C':C4t.round(5).to_dict()}
 d4t_reg = {}
 for rg, sub in d4t.groupby('reg'):
