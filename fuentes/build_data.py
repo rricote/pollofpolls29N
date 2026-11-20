@@ -58,10 +58,10 @@ SHR = 0.5
 fpod = {rg: round(SHR * M['loc']['PODEMOS'][rg] + (1 - SHR) * sum23[rg], 5) for rg in REGN}
 KC = 1.0                              # parte del espacio ex-Sumar de la Comunitat Valenciana que va en Compromís-Front Valencià
 cfg = {
-  'fPod': {'cat': fpod['09'], 'cv': fpod['10'], 'can': fpod['05']},   # Podemos integrado en ERC, Compromís y Unidad del Pueblo Canario
+  'fPod': {'cat': fpod['09'], 'cv': fpod['10'], 'can': fpod['05'], 'bal': fpod['04']},   # Podemos integrado en ERC, Compromís, Unidad del Pueblo Canario y Ara Més-Front Ampli (Baleares)
   'wFA': {'cv': round(sum23['10'] * KC, 5), 'can': round(sum23['05'], 5)},  # parte del voto FA(ex-Sumar) que pasa a Compromís y a UPC
   'kc': KC,
-  'regPodemosCoal': ['09', '10', '05'],
+  'regPodemosCoal': ['09', '10', '05', '04'],
   'andAdelante': round((M['adelante_and']['cis'] * M['adelante_and']['n_cis'] + M['adelante_and']['d40'] * M['adelante_and']['n_d40']) / (M['adelante_and']['n_cis'] + M['adelante_and']['n_d40']), 5),
   'locPodemos': M['loc']['PODEMOS'], 'locPodemosCIS': M['loc']['PODEMOS_cis'], 'locPodemos40': M['loc']['PODEMOS_d40'], 'sumar23': {k: round(v, 5) for k, v in sum23.items()},
   'shr': SHR,
@@ -94,7 +94,7 @@ out = {
  'micro': {'cis': micro('cis'), 'cis9': micro('cis9'), 'd40': micro('d40'), 'd40n': micro('d40n'), 'd40t': micro('d40t'), 'ceo': micro('ceo')},
  'grupos': grupos, 'cfg': cfg, 'polls': polls_build.polls,
  'cat2023': exd(M['b_reg']['09']),
- 'ver': '19-20261119',
+ 'ver': '20-20261120',
 }
 s = json.dumps(out, ensure_ascii=False, separators=(',', ':'))
 open(HERE + 'data.js', 'w', encoding='utf-8').write('const D=' + s + ';\n')

@@ -4,7 +4,7 @@ KEYS.forEach((k, i) => KI[k] = i);
 const NPAR = 16;                       // partidos que compiten por escaño (0..15); 16 = OTROS, 17 = BLANCO
 const MAIN5 = ['PP', 'PSOE', 'VOX', 'SUMAR', 'PODEMOS'];
 let UNITY_R = 0;
-/* parte del Frente Amplio restante que vive en comunidades donde Podemos ya va dentro de otras listas (Cataluña, C. Valenciana, Canarias): ahí la unidad no aplica y no hay bonus */
+/* parte del Frente Amplio restante que vive en comunidades donde Podemos ya va dentro de otras listas (Cataluña, C. Valenciana, Canarias, Baleares): ahí la unidad no aplica y no hay bonus */
 let _CS = null;
 function coalShare() {
   if (_CS !== null) return _CS;
@@ -112,8 +112,8 @@ function aggregate(polls, o) {
   // Unidad del Pueblo Canario (Canarias); el espacio ex-Sumar también va en esas dos últimas. Fuera de ahí, Podemos y Frente Amplio por separado.
   const C = D.cfg, fa = T[KI.SUMAR], pod = T[KI.PODEMOS], tr = C.wFA.cv + C.wFA.can;
   T[KI.COMPROMIS] = fa * C.wFA.cv + pod * C.fPod.cv; T[KI.UPC] = fa * C.wFA.can + pod * C.fPod.can;
-  T[KI.ERC] += pod * C.fPod.cat; T[KI.SUMAR] = fa * (1 - tr); T[KI.PODEMOS] = pod * (1 - C.fPod.cat - C.fPod.cv - C.fPod.can);
-  const tf = { podCat: pod * C.fPod.cat, podCV: pod * C.fPod.cv, podCan: pod * C.fPod.can, faCV: fa * C.wFA.cv, faCan: fa * C.wFA.can };
+  T[KI.ERC] += pod * C.fPod.cat; T[KI.SUMAR] = fa * (1 - tr) + pod * C.fPod.bal; T[KI.PODEMOS] = pod * (1 - C.fPod.cat - C.fPod.cv - C.fPod.can - C.fPod.bal);
+  const tf = { podCat: pod * C.fPod.cat, podCV: pod * C.fPod.cv, podCan: pod * C.fPod.can, podBal: pod * C.fPod.bal, faCV: fa * C.wFA.cv, faCan: fa * C.wFA.can };
   const Tsep = T.slice(); { const ts = Tsep.reduce((a, x) => a + x, 0); for (let i = 0; i < NK; i++) Tsep[i] /= ts }
   const ur = T[KI.SUMAR] > 0 ? T[KI.PODEMOS] / T[KI.SUMAR] : 0;   // peso del Podemos propio frente a Frente Amplio, para repartir la lista unitaria en provincias
   if (o.unity) {
@@ -177,6 +177,10 @@ function baseMatrix(o, Tsep, T) {
     if (T) { for (const k of [KI.PP, KI.PSOE, KI.VOX, KI.SALF]) { const g = gammaFor(k, T); if (g !== 1 && row[k] > 0) row[k] = Math.pow(row[k], g) } const gs = gammaFor(KI.SUMAR, T); if (gs !== 1) { for (const k of [KI.SUMAR, KI.PODEMOS]) if (row[k] > 0) row[k] = Math.pow(row[k], gs) } }
     if (p.ccaa === '10') { row[KI.COMPROMIS] = sum * C.kc; row[KI.SUMAR] = sum * (1 - C.kc) }
     if (p.ccaa === '05') { row[KI.UPC] = sum; row[KI.SUMAR] = 0 }
+    if (p.ccaa === '04' && T) {   // Podemos va dentro de Ara Més-Front Ampli (Baleares): su voto se suma al Frente Amplio en esa comunidad
+      const sepU = 1 - C.fPod.cat - C.fPod.cv - C.fPod.can - C.fPod.bal, pod0 = sepU > 0 ? T[KI.PODEMOS] / sepU : 0, podB = pod0 * C.fPod.bal, faR = Math.max(1e-6, T[KI.SUMAR] - podB) * (C.sumar23['04'] || 0.02);
+      row[KI.SUMAR] = sum * (1 + Math.min(1, podB / faR))
+    }
     if (p.ccaa === '01') row[KI.ADELANTE] = C.andAdelante * (p.adelR || 1);
     for (let k = 0; k < NPAR; k++) { if (row[k] <= 0) continue; const f = facFor(p.ccaa, k, o); row[k] *= f.m; sd[k] = f.sd * o.regInt }
     S0.push(row); SD.push(sd);
@@ -263,11 +267,11 @@ function seedPolls() {
   ps.push({ id: 'cis3582', name: 'CIS 3582 (microdatos)', date: '2026-10-06', n: D.micro.cis.n, v: {}, q: 1, include: true, src: 'micro', mk: 'cis', note: 'Barómetro de octubre (campo 1-6 oct); reponderado por recuerdo de voto 2023' });
   ps.push({ id: 'd40flash', name: '40dB flash (microdatos)', date: '2026-10-08', n: D.micro.d40.n, v: {}, q: 1, include: true, src: 'micro', mk: 'd40', note: 'Flash 7-8 oct; sin Ceuta y Melilla' });
   ps.push({ id: 'd40nov', name: '40dB preelectoral I (microdatos)', date: '2026-11-04', n: D.micro.d40n.n, v: {}, q: 1, include: true, src: 'micro', mk: 'd40n', note: 'Preelectoral I, campo 2-4 nov (CAWI, 2.000 entrevistas); se suma a la flash de octubre, no la sustituye; sin Ceuta y Melilla' });
-  ps.push({ id: 'd40trk', name: '40dB tracking diario (microdatos)', date: '2026-11-17', n: D.micro.d40t.n, v: {}, q: 1, include: true, src: 'micro', mk: 'd40t', note: 'Tracking diario, campo 10-17 nov (CAWI): entrega 4 (2.500 entrevistas) más las nuevas de las entregas 5 y 6 (ventanas móviles de 2.000); sin entrevistas repetidas; sin Ceuta y Melilla' });
+  ps.push({ id: 'd40trk', name: '40dB tracking diario (microdatos)', date: '2026-11-19', n: D.micro.d40t.n, v: {}, q: 1, include: true, src: 'micro', mk: 'd40t', note: 'Tracking diario, campo 10-19 nov (CAWI): entrega 4 (2.500 entrevistas) más las nuevas de las entregas 5, 6, 8 y 9 (ventanas móviles de 2.000; las del día 7 están dentro de la 8 y la 9); sin entrevistas repetidas; sin Ceuta y Melilla' });
   ps.push({ id: 'ceo1169', name: 'CEO 1169 (solo Cataluña)', date: '2026-09-16', n: D.micro.ceo.n, v: {}, q: 1, include: false, src: 'micro', mk: 'ceo', regional: true, note: 'No entra en la media nacional: refuerza los factores de Cataluña' });
   return ps;
 }
-const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.40, sdProv: 0.05, lam: 0.35, house: 1, group: true, blockShift: 0, ref: '2026-11-19', target: '2026-11-29', trend: (window.POP || {}).mode === 'trend' };
+const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.40, sdProv: 0.05, lam: 0.35, house: 1, group: true, blockShift: 0, ref: '2026-11-20', target: '2026-11-29', trend: (window.POP || {}).mode === 'trend' };
 
 /* ---- voto necesario para escaño (D'Hondt, resto de partidos escalados en proporción) ---- */
 const _out = new Int16Array(NPAR);
@@ -326,14 +330,14 @@ function effThreshold(row, seats, noLegal) {
 
 /* ---- valores de Frente Amplio y Podemos en el gráfico: misma conversión que la media (candidaturas regionales y escenario unitario) ---- */
 function chartMain(vec, o) {
-  const c = D.cfg; let fa = vec[KI.SUMAR] * (1 - c.wFA.cv - c.wFA.can), po = vec[KI.PODEMOS] * (1 - c.fPod.cat - c.fPod.cv - c.fPod.can);
+  const c = D.cfg; let fa = vec[KI.SUMAR] * (1 - c.wFA.cv - c.wFA.can) + vec[KI.PODEMOS] * c.fPod.bal, po = vec[KI.PODEMOS] * (1 - c.fPod.cat - c.fPod.cv - c.fPod.can - c.fPod.bal);
   if (o.unity) { const sc = fa * coalShare(); fa = Math.min(0.3, sc + (fa + po - sc) * o.bonus); po = 0 }
   return { SUMAR: fa, PODEMOS: po };
 }
 
 /* ---- Frente Amplio + confluencias de una encuesta: Frente Amplio con Compromís y UPC (trozos del voto de FA); Podemos y Adelante Andalucía quedan fuera ---- */
 function facMain(vec, o, adel) {
-  let s = vec[KI.SUMAR];
-  if (o.unity) { const c = D.cfg, sc = s * coalShare(), po = vec[KI.PODEMOS] * (1 - c.fPod.cat - c.fPod.cv - c.fPod.can); s = Math.min(0.3, sc + (s + po - sc) * o.bonus) }
+  let s = vec[KI.SUMAR] + vec[KI.PODEMOS] * D.cfg.fPod.bal;
+  if (o.unity) { const c = D.cfg, sc = s * coalShare(), po = vec[KI.PODEMOS] * (1 - c.fPod.cat - c.fPod.cv - c.fPod.can - c.fPod.bal); s = Math.min(0.3, sc + (s + po - sc) * o.bonus) }
   return s;
 }

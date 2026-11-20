@@ -247,7 +247,7 @@ _t4 = _trk(4)
 _cols = [c for c in _t4.columns if c not in ('id', 'ponde')]
 _fp = lambda d: pd.Series(['|'.join('' if pd.isna(v) else str(v) for v in r) for r in d[_cols].itertuples(index=False)], index=d.index)
 _parts = [_t4]; _seen = set(_fp(_t4))
-for _n in (5, 6):          # entregas móviles de 2.000 (campo de los últimos 4-5 días): se añaden solo las entrevistas que no estaban
+for _n in (5, 6, 8, 9):          # entregas móviles de 2.000 (campo de los últimos 4-5 días): se añaden solo las entrevistas que no estaban
     _t = _trk(_n); _k = _fp(_t); _nw = _t[~_k.isin(_seen)]
     print('tracking: entrega', _n, len(_t), '-> nuevas', len(_nw)); _parts.append(_nw); _seen |= set(_k)
 d4t = pd.concat(_parts, ignore_index=True)
@@ -286,7 +286,7 @@ d4t['wAp'] = d4t.w0
 A4t, B4t, C4t, nA4t, nB4t, nC4t = micro_variants(d4t, d4t.wAp, d4t.wBp)
 print('40dB trk A', (A4t*100).round(1).to_dict()); print('40dB trk B', (B4t*100).round(1).to_dict()); print('40dB trk C', (C4t*100).round(1).to_dict())
 print('rec', d4t.rec.value_counts().to_dict()); print('vote', d4t.vote.value_counts().to_dict())
-res['d40t'] = {'id':'40dB tracking diario (microdatos)','n':int(len(d4t)),'field':'2026-11-17','nA':nA4t,'nB':nB4t,
+res['d40t'] = {'id':'40dB tracking diario (microdatos)','n':int(len(d4t)),'field':'2026-11-19','nA':nA4t,'nB':nB4t,
                'A':A4t.round(5).to_dict(),'B':B4t.round(5).to_dict(),'C':C4t.round(5).to_dict()}
 d4t_reg = {}
 for rg, sub in d4t.groupby('reg'):

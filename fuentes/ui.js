@@ -256,7 +256,7 @@ const pts = x => { const t = nf(Math.abs(x) * 100, 1); return (Math.abs(x) * 100
 const mark = (k, w) => `<span class="sw" style="background:var(--c-${k})"></span>`;
 function present(j, k) {
   const p = D.prov[j], C = D.cfg, K = KEYS[k];
-  if (K === 'PODEMOS') return st.A.T[k] > 0 && !C.regPodemosCoal.includes(p.ccaa);   // en Cataluña, C. Valenciana y Canarias va dentro de otras listas
+  if (K === 'PODEMOS') return st.A.T[k] > 0 && !C.regPodemosCoal.includes(p.ccaa);   // en Cataluña, C. Valenciana, Canarias y Baleares va dentro de otras listas
   if (K === 'SUMAR') return p.ccaa !== '05' && p.ccaa !== '10' && p.sh[k] > 0;   // en Canarias y la C. Valenciana va dentro de UPC y Compromís
   if (K === 'ADELANTE') return p.ccaa === '01';
   if (K === 'COMPROMIS') return p.ccaa === '10';
@@ -495,17 +495,17 @@ function micro() {
   h += `<tr class="grp"><td colspan="9">CIS 3582 · ${nf(mm.cis.n)} entrevistas</td></tr>` + row('Publicada por el CIS', pub(22.2, 34.0, 17.1, 6.1, 3.1)) + row('Bruta (voto + simpatía)', vv(mm.cis.A)) + row('Reponderada por recuerdo', vv(mm.cis.B), o.variant === 'B' ? 'sel' : '') + row('Reponderada + indecisos', vv(mm.cis.C), o.variant === 'C' ? 'sel' : '');
   h += `<tr class="grp"><td colspan="9">40dB flash, 7-8 oct · ${nf(mm.d40.n)} entrevistas</td></tr>` + row('Publicada por 40dB', pub(31.9, 28.1, 18.9, 5.3, 2.3, 1.8)) + row('Bruta (intención + afinidad)', vv(mm.d40.A)) + row('Reponderada por recuerdo', vv(mm.d40.B), o.variant === 'B' ? 'sel' : '') + row('Reponderada + indecisos', vv(mm.d40.C), o.variant === 'C' ? 'sel' : '');
   h += `<tr class="grp"><td colspan="9">40dB preelectoral I, 2-4 nov · ${nf(mm.d40n.n)} entrevistas</td></tr>` + row('Publicada por 40dB', pub(31.9, 29.9, 18.0, 5.0, 1.2, 2.0)) + row('Bruta (intención + afinidad)', vv(mm.d40n.A)) + row('Reponderada por recuerdo', vv(mm.d40n.B), o.variant === 'B' ? 'sel' : '') + row('Reponderada + indecisos', vv(mm.d40n.C), o.variant === 'C' ? 'sel' : '');
-  h += `<tr class="grp"><td colspan="9">40dB tracking diario, 10-17 nov · ${nf(mm.d40t.n)} entrevistas</td></tr>` + row('Publicada por 40dB (13-17 nov)', pub(32.2, 30.7, 17.0, 5.2, 1.2, 1.7)) + row('Bruta (intención + afinidad)', vv(mm.d40t.A)) + row('Reponderada por recuerdo', vv(mm.d40t.B), o.variant === 'B' ? 'sel' : '') + row('Reponderada + indecisos', vv(mm.d40t.C), o.variant === 'C' ? 'sel' : '');
+  h += `<tr class="grp"><td colspan="9">40dB tracking diario, 10-19 nov · ${nf(mm.d40t.n)} entrevistas</td></tr>` + row('Publicada por 40dB (día 8, 19 nov)', pub(32.2, 30.2, 17.6, 5.3, 1.1, 1.7)) + row('Bruta (intención + afinidad)', vv(mm.d40t.A)) + row('Reponderada por recuerdo', vv(mm.d40t.B), o.variant === 'B' ? 'sel' : '') + row('Reponderada + indecisos', vv(mm.d40t.C), o.variant === 'C' ? 'sel' : '');
   h += `</tbody>`; $('#mt').innerHTML = h;
   // nueva configuración de candidaturas: dónde se integra el voto de Podemos y del espacio ex-Sumar
   const C = D.cfg, tf = st.A.tf, pts = x => nf(x * 100, 1);
-  const pr = [['09', 'cat', 'ERC (Cataluña)', tf.podCat], ['10', 'cv', 'Compromís-Front Valencià', tf.podCV], ['05', 'can', 'Unidad del Pueblo Canario', tf.podCan]];
+  const pr = [['09', 'cat', 'ERC (Cataluña)', tf.podCat], ['10', 'cv', 'Compromís-Front Valencià', tf.podCV], ['05', 'can', 'Unidad del Pueblo Canario', tf.podCan], ['04', 'bal', 'Ara Més–Front Ampli (Frente Amplio, Illes Balears)', tf.podBal]];
   let z = `<thead><tr><th>Dónde está el voto de Podemos</th><th>CIS 3582</th><th>40dB (flash y noviembre)</th><th>Usado</th><th>Puntos de voto en la media</th></tr></thead><tbody>`;
   z += pr.map(([rg, c, lab, pt]) => `<tr><td>Se integra en ${esc(lab)}</td><td class="num">${pts(C.locPodemosCIS[rg])} %</td><td class="num">${pts(C.locPodemos40[rg])} %</td><td class="num">${pts(C.fPod[c])} %</td><td class="num">${nf(pt * 100, 2)}</td></tr>`).join('');
-  const sepU = 1 - C.fPod.cat - C.fPod.cv - C.fPod.can;
+  const sepU = 1 - C.fPod.cat - C.fPod.cv - C.fPod.can - C.fPod.bal;
   z += `<tr class="sel"><td>Concurre por separado (resto de España)</td><td class="num">${pts(1 - pr.reduce((a, x) => a + C.locPodemosCIS[x[0]], 0))} %</td><td class="num">${pts(1 - pr.reduce((a, x) => a + C.locPodemos40[x[0]], 0))} %</td><td class="num">${pts(sepU)} %</td><td class="num">${nf(st.A.T[KI.PODEMOS] * 100, 2)}</td></tr></tbody>`;
   $('#pz').innerHTML = z;
-  $('#pzn').textContent = `Porcentaje de los votantes de Podemos que viven en cada comunidad, medido en CIS y 40dB (reponderado). El valor usado mezcla a partes iguales las dos encuestas y el reparto del voto Sumar de 2023, porque la muestra de Podemos por comunidad es corta. Los votantes de Cataluña, la Comunitat Valenciana y Canarias se suman a ERC, Compromís-Front Valencià y Unidad del Pueblo Canario. El espacio ex-Sumar pasa en parte a Compromís (${pts(C.wFA.cv)} % de su voto, un ${pts(C.kc)} % del que tenía en la Comunitat Valenciana) y a Unidad del Pueblo Canario (${pts(C.wFA.can)} %), que sustituye a Frente Amplio en Canarias.`;
+  $('#pzn').textContent = `Porcentaje de los votantes de Podemos que viven en cada comunidad, medido en CIS y 40dB (reponderado). El valor usado mezcla a partes iguales las dos encuestas y el reparto del voto Sumar de 2023, porque la muestra de Podemos por comunidad es corta. Los votantes de Cataluña, la Comunitat Valenciana y Canarias se suman a ERC, Compromís-Front Valencià y Unidad del Pueblo Canario; los de Illes Balears, al Frente Amplio (Podemos no presenta lista allí y su coordinadora, Lucía Muñoz, va tercera en Ara Més–Front Ampli). El espacio ex-Sumar pasa en parte a Compromís (${pts(C.wFA.cv)} % de su voto, un ${pts(C.kc)} % del que tenía en la Comunitat Valenciana) y a Unidad del Pueblo Canario (${pts(C.wFA.can)} %), que sustituye a Frente Amplio en Canarias.`;
   // CEO + fidelidad
   const ck = ['PSOE', 'PP', 'VOX', 'SUMAR', 'ERC', 'JUNTS'];
   const crow = (lab, arr, cls) => `<tr class="${cls || ''}"><td>${lab}</td>${ck.map(k => `<td class="num">${nm(arr[KI[k]])}</td>`).join('')}</tr>`;
