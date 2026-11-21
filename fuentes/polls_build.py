@@ -154,6 +154,7 @@ add('Sondaxe / La Voz de Galicia', '2026-11-20', 1000, V(29.3, 27.8, 19.7, 6.9, 
 add('Data10 / OKdiario', '2026-11-20', 750, V(32.5, 26.5, 18.8, 6.8, 2.1, 1.5, ADELANTE=1.7), note='Publicada el 20 nov. Mapa Electoral da n=750 (la del 19 fue 2.600 acumulada: la muestra puede estar mal). Campo no indicado. Sustituye a la del 19 nov')
 add('More in Common', '2026-11-20', 2315, V(28.9, 28.0, 19.8, 7.1, 1.7, 2.3), q=0.85, note='Publicada el 20 nov (el agregador no indica el medio). Campo no indicado; Adelante no publicada')
 add('40dB / El País-SER', '2026-11-20', 2000, V(31.9, 31.2, 17.1, 5.5, 1.1, 1.5), inc=False, note='Tracking diario "día 9", publicado el 20 nov (n=2.000). Es el mismo dato que los microdatos del día 9 (ya incluidos en la fila de microdatos del tracking)')
+add('40dB / El País-SER', '2026-11-21', 2000, V(31.9, 31.6, 16.9, 5.3, 1.0, 1.4), inc=False, note='Tracking diario "día 10", publicado el 21 nov (campo 17-21 nov, ventana móvil; n=2.000 supuesta). FA 3,6 + otras coaliciones 1,7. Comparte 1.500 entrevistas con los microdatos del tracking (días 7-9): no se suma a ellos; actívala solo si desactivas la fila de microdatos. Microdatos del día 10 aún no disponibles')
 # --- histórico: electografica.com (agregador) ---
 def have(name, date): return any(p['name'] == canon(name) and p['date'] == date for p in polls)
 SKIP = set()
