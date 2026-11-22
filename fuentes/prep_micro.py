@@ -240,14 +240,14 @@ for rg, sub in d4n.groupby('reg'):
 # Las dos comparten 1.500 entrevistas (13-15 nov); se detectan por sus respuestas y de la entrega 5 solo se añaden las nuevas (día 16).
 import zipfile, io
 def _trk(n):
-    z = zipfile.ZipFile(UP+f'40db tracking diario/40dB_tracking_dia0{n}.zip')
+    z = zipfile.ZipFile(UP+f'40db tracking diario/40dB_tracking_dia{n:02d}.zip')
     nm = [x for x in z.namelist() if x.endswith(f'03_Datos_tracking_dia{n}.xlsx') and '__MACOSX' not in x][0]
     return pd.read_excel(io.BytesIO(z.read(nm)))
 _t4 = _trk(4)
 _cols = [c for c in _t4.columns if c not in ('id', 'ponde')]
 _fp = lambda d: pd.Series(['|'.join('' if pd.isna(v) else str(v) for v in r) for r in d[_cols].itertuples(index=False)], index=d.index)
 _parts = [_t4]; _seen = set(_fp(_t4))
-for _n in (5, 6, 8, 9):          # entregas móviles de 2.000 (campo de los últimos 4-5 días): se añaden solo las entrevistas que no estaban
+for _n in (5, 6, 8, 9, 10):          # entregas móviles de 2.000 (campo de los últimos 4-5 días): se añaden solo las entrevistas que no estaban
     _t = _trk(_n); _k = _fp(_t); _nw = _t[~_k.isin(_seen)]
     print('tracking: entrega', _n, len(_t), '-> nuevas', len(_nw)); _parts.append(_nw); _seen |= set(_k)
 d4t = pd.concat(_parts, ignore_index=True)
@@ -286,7 +286,7 @@ d4t['wAp'] = d4t.w0
 A4t, B4t, C4t, nA4t, nB4t, nC4t = micro_variants(d4t, d4t.wAp, d4t.wBp)
 print('40dB trk A', (A4t*100).round(1).to_dict()); print('40dB trk B', (B4t*100).round(1).to_dict()); print('40dB trk C', (C4t*100).round(1).to_dict())
 print('rec', d4t.rec.value_counts().to_dict()); print('vote', d4t.vote.value_counts().to_dict())
-res['d40t'] = {'id':'40dB tracking diario (microdatos)','n':int(len(d4t)),'field':'2026-11-19','nA':nA4t,'nB':nB4t,
+res['d40t'] = {'id':'40dB tracking diario (microdatos)','n':int(len(d4t)),'field':'2026-11-21','nA':nA4t,'nB':nB4t,
                'A':A4t.round(5).to_dict(),'B':B4t.round(5).to_dict(),'C':C4t.round(5).to_dict()}
 d4t_reg = {}
 for rg, sub in d4t.groupby('reg'):
@@ -376,6 +376,24 @@ def lnf(s_reg, ne, b_c, b_n, s_n, p):
     return est, se
 PRI = json.load(open(W+'work/profiles.json')).get('reg_prior', {})
 TAUP_PRI = {'PP': 0.07}   # con prior autonómico el error regional del PP baja de 0,108 a ~0,06 en el backtest
+# ---------- encuestas autonómicas sobre voto al Congreso (A+M Aragón, Sondaxe Galicia, SocioMétrica C. Valenciana) ----------
+# Cada una aporta un factor regional extra, contra la media de encuestas nacionales publicadas en las fechas de su campo (así se compara con una referencia de la misma metodología, no con la reponderada).
+sys.path.insert(0, W + 'work'); import polls_build as _PB
+from datetime import date as _dt
+def _dn(x): return _dt.fromisoformat(x).toordinal()
+REGPOLLS = [
+  {'rg':'02','name':'A+M / Heraldo de Aragón','ini':'2026-10-01','fin':'2026-10-06','n':2200,'pub':'2026-10-12','v':{'PP':.345,'PSOE':.297,'VOX':.175},'nota':'Online, ±2,1 %. Sumar 5,4 y CHA 6,6 no se usan (la base 2023 de Sumar incluye CHA); Aragón Existe 3,3'},
+  {'rg':'12','name':'Sondaxe / La Voz de Galicia','ini':'2026-09-09','fin':'2026-09-24','n':1223,'pub':'2026-09-27','v':{'PP':.403,'PSOE':.267,'VOX':.085,'SUMAR':.064,'BNG':.14},'nota':'Publicada a finales de septiembre (fecha de publicación aproximada)'},
+  {'rg':'10','name':'SocioMétrica / El Español','ini':'2026-10-01','fin':'2026-10-07','n':1100,'pub':'2026-10-10','v':{'PP':.353,'PSOE':.257,'VOX':.224},'nota':'Frente Amplio/Compromís no se usan: la fuente da Compromís 8,2 y Sumar sin dato, y aquí el FA va dentro de Compromís'},
+]
+DEFF_RP, SYS_RP = 1.5, 0.04
+for _r in REGPOLLS:
+    mid = (_dn(_r['ini']) + _dn(_r['fin'])) / 2
+    near = [p for p in _PB.polls if p['include'] and p['src'] == 'pub' and abs(_dn(p['date']) - mid) <= 10 and all(k in p['v'] for k in ('PP', 'PSOE', 'VOX'))]
+    wts = [min(p['n'], 2500) ** 0.5 * p['q'] for p in near]
+    nat = {k: sum(w * p['v'][k] for w, p in zip(wts, near) if k in p['v']) / sum(w for w, p in zip(wts, near) if k in p['v']) for k in ('PP', 'PSOE', 'VOX', 'SUMAR') if any(k in p['v'] for p in near)}
+    _r['nat'] = nat; _r['n_nat'] = len(near)
+    print('encuesta regional', _r['name'], 'referencia nacional (%d encuestas)' % len(near), {k: round(v*100, 1) for k, v in nat.items()})
 regions = sorted(reg.index)
 fac = {}
 for rg in regions:
@@ -391,6 +409,12 @@ for rg in regions:
         if rg in d4_reg and d4_reg[rg][1] >= 20: ests.append(lnf(d4_reg[rg][0], d4_reg[rg][1], b_reg_f.loc[rg], b_nat, B4, p))
         if rg in d4n_reg and d4n_reg[rg][1] >= 20: ests.append(lnf(d4n_reg[rg][0], d4n_reg[rg][1], b_reg_f.loc[rg], b_nat, B4n, p))
         if rg in d4t_reg and d4t_reg[rg][1] >= 20: ests.append(lnf(d4t_reg[rg][0], d4t_reg[rg][1], b_reg_f.loc[rg], b_nat, B4t, p))
+        for _r in REGPOLLS:
+            if _r['rg'] == rg and p in _r['v']:
+                _sn = nat_ref.copy() if hasattr(nat_ref, 'copy') else dict(nat_ref)
+                for _k, _v in _r['nat'].items(): _sn[_k] = _v
+                _e, _se = lnf(_r['v'], _r['n'] / DEFF_RP, b_reg_f.loc[rg], b_nat, _sn, p)
+                ests.append((_e, float(np.sqrt(_se**2 + SYS_RP**2))))
         if rg == '09':       # añade CEO (referencia: nacional medio de CIS/40dB)
             e2, se2 = lnf(Bc, nBc, b_reg_f.loc[rg], b_nat, nat_ref, p)
             ests.append((e2, se2))
@@ -401,6 +425,8 @@ for rg in regions:
         row[p] = {'raw': round(float(e), 4), 'se': round(float(se), 4), 'f': round(float(np.exp(m + w*(e - m))), 4), 'sd': round(float(np.sqrt(1/(1/tp**2 + 1/se**2))), 4), 'm': round(float(m), 4)}
     fac[rg] = row
 res['factores_regionales'] = fac
+res['reg_polls'] = [{k: v for k, v in r.items()} for r in REGPOLLS]
+for _r in REGPOLLS: print('factor', _r['rg'], {p: fac[_r['rg']][p]['f'] for p in fac[_r['rg']]})
 res['tau'] = TAU
 res['n_reg'] = {rg: [int(cis_reg[rg][2]), round(float(cis_reg[rg][1]), 1)] for rg in regions}
 res['b_nat'] = b_nat.round(5).to_dict()

@@ -90,11 +90,11 @@ _x = ADEL23 * _c / _v; nat23[KEYS.index('ADELANTE')] += _x; nat23[KEYS.index('OT
 s23 = D['base']['seats']; seats2023 = s23[:13] + [0, 0, 0] + s23[13:]
 out = {
  'keys': KEYS, 'parties': parties, 'prov': prov, 'seats2023': seats2023,
- 'nat2023': nat23, 'regn': REGN, 'fac': fac, 'tau': M['tau'], 'nreg': M['n_reg'],
+ 'nat2023': nat23, 'regn': REGN, 'fac': fac, 'regPolls': M['reg_polls'], 'tau': M['tau'], 'nreg': M['n_reg'],
  'micro': {'cis': micro('cis'), 'cis9': micro('cis9'), 'd40': micro('d40'), 'd40n': micro('d40n'), 'd40t': micro('d40t'), 'ceo': micro('ceo')},
  'grupos': grupos, 'cfg': cfg, 'polls': polls_build.polls,
  'cat2023': exd(M['b_reg']['09']),
- 'ver': '22-20261121',
+ 'ver': '24-20261122',
 }
 s = json.dumps(out, ensure_ascii=False, separators=(',', ':'))
 open(HERE + 'data.js', 'w', encoding='utf-8').write('const D=' + s + ';\n')
