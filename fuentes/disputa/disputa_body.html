@@ -1,0 +1,32 @@
+<div class="wrap">
+  <header>
+    <div class="kick"><span>Elecciones generales · 29 de noviembre de 2026</span><span class="pill" id="pill">Escaños en disputa</span><a class="navbtn" href="index.html" target="_blank" rel="noopener">← Poll of polls (hoy)</a><a class="navbtn nb2" href="tendencia.html" target="_blank" rel="noopener">Tendencia a 29-N →</a></div>
+    <h1 id="headline">Calculando</h1>
+    <p class="sub" id="sub"></p>
+  </header>
+  <div class="ctrl" role="group" aria-label="Controles">
+    <fieldset class="fld seg" aria-label="Escenario"><legend class="lbl">Escenario</legend><span><input type="radio" name="esc" id="e0" value="hoy" checked><label for="e0">Media de hoy</label><input type="radio" name="esc" id="e1" value="tend"><label for="e1">Si sigue la tendencia</label></span></fieldset>
+    <label class="fld" for="thr"><span class="lbl">Un escaño es «probable» desde</span><select id="thr"><option value="0.9">90 % de las simulaciones</option><option value="0.75" selected>75 % de las simulaciones</option><option value="0.6">60 % de las simulaciones</option></select></label>
+    <fieldset class="fld seg" aria-label="Lista"><legend class="lbl">Provincias</legend><span><input type="radio" name="lst" id="l0" value="0" checked><label for="l0">Solo con escaños en juego</label><input type="radio" name="lst" id="l1" value="1"><label for="l1">Todas</label></span></fieldset>
+  </div>
+  <section class="card" aria-label="Resumen">
+    <h2>Los 350 escaños</h2>
+    <div id="bar"></div>
+    <div id="legend" class="lgd"></div>
+    <div id="kpis" class="kp"></div>
+  </section>
+  <nav class="tabs" role="tablist" aria-label="Vistas">
+    <button type="button" role="tab" id="tab-prov" aria-selected="true">Provincias</button>
+    <button type="button" role="tab" id="tab-par" aria-selected="false" tabindex="-1">Partidos</button>
+  </nav>
+  <div class="two" id="p-prov">
+    <section class="card"><h2>Mapa de provincias</h2><p class="muted" id="mapnote"></p><div id="map"></div><div id="maplg" class="lgd"></div></section>
+    <section class="card"><h2 id="lh">Provincias</h2><div id="list"></div></section>
+  </div>
+  <section class="card" id="p-par" hidden>
+    <h2>Dónde se juega cada partido sus escaños</h2>
+    <p class="muted">Escaños que cada partido ya tiene casi asegurados, los que puede perder y los que puede ganar, con la probabilidad de que consiga al menos ese escaño. Pulsa un partido para ver las provincias.</p>
+    <div class="tw"><table class="ptab" id="ptab"></table></div>
+    <div id="pdet"></div>
+  </section>
+</div>

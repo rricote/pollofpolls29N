@@ -392,7 +392,7 @@ for p in ('PODEMOS','SUMAR','ADELANTE'):
 res['loc'] = loc
 # Adelante Andalucía: cuota entre votantes de Andalucía (media CIS/40dB)
 _n40 = int(d4_reg['01'][2]) + int(d4n_reg['01'][2]) + int(d4t_reg['01'][2])
-res['adelante_and'] = {'cis': float((cis_reg['01'][0]['ADELANTE']*cis_reg['01'][2] + cis11_reg['01'][0]['ADELANTE']*cis11_reg['01'][2])/(cis_reg['01'][2] + cis11_reg['01'][2])), 'd40': float((d4_reg['01'][0]['ADELANTE']*d4_reg['01'][2] + d4n_reg['01'][0]['ADELANTE']*d4n_reg['01'][2] + d4t_reg['01'][0]['ADELANTE']*d4t_reg['01'][2])/_n40), 'n_cis': int(cis_reg['01'][2] + cis11_reg['01'][2]), 'n_d40': _n40}
+res['adelante_and'] = {'cis': float((cis_reg['01'][0]['ADELANTE']*cis_reg['01'][2] + cis11_reg['01'][0]['ADELANTE']*cis11_reg['01'][2])/(cis_reg['01'][2] + cis11_reg['01'][2])), 'd40': float((d4_reg['01'][0]['ADELANTE']*d4_reg['01'][2] + d4n_reg['01'][0]['ADELANTE']*d4n_reg['01'][2] + d4t_reg['01'][0]['ADELANTE']*d4t_reg['01'][2])/_n40), 'cen': 0.100, 'n_cen': 1600, 'n_cis': int(cis_reg['01'][2] + cis11_reg['01'][2]), 'n_d40': _n40}
 print('LOC Podemos', {k:v for k,v in loc['PODEMOS'].items() if v>0.04}); print('LOC Sumar', {k:v for k,v in loc['SUMAR'].items() if v>0.04}); print('Adelante en Andalucía', res['adelante_and'])
 
 cis9_reg = {}
@@ -427,6 +427,7 @@ REGPOLLS = [
   {'rg':'02','name':'A+M / Heraldo de Aragón','ini':'2026-10-01','fin':'2026-10-06','n':2200,'pub':'2026-10-12','v':{'PP':.345,'PSOE':.297,'VOX':.175},'nota':'Online, ±2,1 %. Sumar 5,4 y CHA 6,6 no se usan (la base 2023 de Sumar incluye CHA); Aragón Existe 3,3'},
   {'rg':'12','name':'Sondaxe / La Voz de Galicia','ini':'2026-09-09','fin':'2026-09-24','n':1223,'pub':'2026-09-27','v':{'PP':.403,'PSOE':.267,'VOX':.085,'SUMAR':.064,'BNG':.14},'nota':'Publicada a finales de septiembre (fecha de publicación aproximada)'},
   {'rg':'10','name':'SocioMétrica / El Español','ini':'2026-10-01','fin':'2026-10-07','n':1100,'pub':'2026-10-10','v':{'PP':.353,'PSOE':.257,'VOX':.224},'nota':'Frente Amplio/Compromís no se usan: la fuente da Compromís 8,2 y Sumar sin dato, y aquí el FA va dentro de Compromís'},
+  {'rg':'01','name':'CENTRA / Junta de Andalucía','ini':'2026-10-22','fin':'2026-11-11','n':2400,'pub':'2026-11-23','v':{'PP':.313,'PSOE':.250,'VOX':.190,'SUMAR':.073},'nota':'Telefónica (CATI), dos oleadas de 1.200 (22-28 oct y 5-11 nov), ±2,0 %. Estimación de voto publicada; Adelante Andalucía 10,0 % entra en su propia base andaluza. Microdatos no publicados'},
 ]
 DEFF_RP, SYS_RP = 1.5, 0.04
 for _r in REGPOLLS:

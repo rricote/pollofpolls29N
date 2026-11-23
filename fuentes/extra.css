@@ -178,3 +178,5 @@ small.gd,td.gd{color:var(--good)}small.bd,td.bd{color:var(--bad)}
 .prt th{font-size:10px;letter-spacing:.02em;padding-left:5px}.prt td{padding-left:5px}.prt td.num{font-size:13px}.prt td.s2{font-size:15px}
 .prt td:first-child{white-space:normal;min-width:96px;max-width:150px}.prt td.need small{display:block;text-align:right}
 .prt{min-width:560px}.prt td:first-child .lk{white-space:normal;text-align:left;line-height:1.25}.prt td.need{white-space:nowrap}
+
+.navbtn.nb2{margin-left:0}
