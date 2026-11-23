@@ -140,6 +140,45 @@ tr = (dec.groupby(['rec','vote']).wBp.sum().unstack(fill_value=0))
 tr = tr.div(tr.sum(axis=1), axis=0)
 res['cis']['trans'] = {r: tr.loc[r].round(4).to_dict() for r in tr.index}
 
+# ---------- CIS 3584 (macroencuesta preelectoral, campo 7-30 oct, 45.074 entrevistas; sin Ceuta y Melilla) ----------
+def prep_cis3584(path):
+    c = pd.read_csv(path, sep=';', encoding='utf-8-sig', low_memory=False)
+    c.columns = [x.split(':')[0] for x in c.columns]
+    c = c[~c.CCAA.isin([18, 19])].copy()
+    P = {1:'PSOE',2:'PP',3:'VOX',30:'SUMAR',404:'SUMAR',1004:'SUMAR',508:'SUMAR',8:'PODEMOS',28:'SALF',101:'ADELANTE',901:'ERC',902:'JUNTS',
+         1602:'BILDU',1601:'PNV',1201:'BNG',507:'CC',1501:'UPN',8996:'BLANCO'}
+    OTH = {6, 12, 13, 27, 31, 33, 202, 506, 802, 1502, 8995}
+    PS = dict(P); PS.update({21:'SUMAR',9:'SUMAR',912:'SUMAR',1301:'SUMAR',1001:'SUMAR',203:'SUMAR',401:'SUMAR',4:'PODEMOS',503:'CC',1001:'SUMAR',8995:'OTROS'})
+    def simp(s):
+        if s in PS: return PS[s]
+        if s in (0, 9997, 9998, 9999): return None
+        return 'OTROS'
+    def vote(r):
+        a = r.INTENCIONGR
+        if a in P: return P[a]
+        if a in OTH: return 'OTROS'
+        if a in (9998, 9999): return simp(r.SIMPATIAR) or 'UND'
+        if a == 9997: return simp(r.SIMPATIAR)
+        return None
+    c['vote'] = c.apply(vote, axis=1)
+    rec_map = {1:'PSOE',2:'PP',3:'VOX',21:'SUMAR',901:'ERC',902:'JUNTS',1602:'BILDU',1601:'PNV',1201:'BNG',503:'CC',1501:'UPN',6:'OTROS',8995:'OTROS',8996:'BN',9977:'BN',9997:'ABST'}
+    c['rec'] = c.RECUERDO.map(rec_map).fillna('NA')
+    c['prop'] = c.PROBVOTO.map(lambda x: 0.5 if x in (98, 99) else x/10)
+    c['reg'] = c.CCAA.astype(int).map(lambda x: f'{x:02d}')
+    assert c.reg.isin(list(reg.index)).all()
+    c['w0'] = c.PESO.astype(str).str.replace(',', '.').astype(float)
+    c['wB'] = rake(c, 'reg', 'w0', 'rec', tg)
+    c['wBp'] = c.wB*c.prop
+    c['wAp'] = c.w0
+    return c
+cis11 = prep_cis3584(UP+'MD3584/3584_num.csv')
+A11, B11, C11, nA11, nB11, nC11 = micro_variants(cis11, cis11.wAp, cis11.wBp)
+print('CIS 3584 n', len(cis11), 'A', (A11*100).round(1).to_dict()); print('CIS 3584 B', (B11*100).round(1).to_dict()); print('CIS 3584 C', (C11*100).round(1).to_dict())
+res['cis11'] = {'id':'CIS 3584','n':int(len(cis11)),'field':'2026-10-30','nA':nA11,'nB':nB11,'A':A11.round(5).to_dict(),'B':B11.round(5).to_dict(),'C':C11.round(5).to_dict()}
+cis11_reg = {}
+for rg, sub in cis11.groupby('reg'):
+    s11, ne11 = shares(sub, sub.wBp, 'vote'); cis11_reg[rg] = (s11, ne11, len(sub))
+
 # ---------- 40dB flash octubre ----------
 d4 = pd.read_excel(UP+'2026_10_08_barometro_40db/03_Datos_octubre_2026_flash.xlsx')
 def p4(x):
@@ -325,6 +364,9 @@ def loc_frac(p, which):
     out = {}
     for rg in regions_all:
         if which == 'cis': sh = cis_reg[rg][0][p]; ne = cis_reg[rg][1]
+        elif which == 'cis11':
+            if rg not in cis11_reg: out[rg] = None; continue
+            sh = cis11_reg[rg][0][p]; ne = cis11_reg[rg][1]
         elif which == 'd40t':
             if rg not in d4t_reg: out[rg] = None; continue
             sh = d4t_reg[rg][0][p]; ne = d4t_reg[rg][1]
@@ -341,16 +383,16 @@ def norm(d):
     d = {k: (v if v is not None else 0.0) for k, v in d.items()}; t = sum(d.values()); return {k: v/t for k, v in d.items()}
 loc = {}
 for p in ('PODEMOS','SUMAR','ADELANTE'):
-    a = norm(loc_frac(p,'cis')); b1 = norm(loc_frac(p,'d40')); b2 = norm(loc_frac(p,'d40n')); b3 = norm(loc_frac(p,'d40t'))
+    a0 = norm(loc_frac(p,'cis')); a11 = norm(loc_frac(p,'cis11')); a = {rg: ((a0[rg]*nB + a11[rg]*nB11)/(nB + nB11) if rg in cis11_reg else a0[rg]) for rg in regions_all}; b1 = norm(loc_frac(p,'d40')); b2 = norm(loc_frac(p,'d40n')); b3 = norm(loc_frac(p,'d40t'))
     b = {rg: (b1[rg]*nB4 + b2[rg]*nB4n + b3[rg]*nB4t)/(nB4 + nB4n + nB4t) for rg in regions_all}      # 40dB: flash de octubre + preelectoral de noviembre + tracking
-    na, nb = nB, nB4 + nB4n + nB4t
+    na, nb = nB + nB11, nB4 + nB4n + nB4t
     loc[p] = {rg: round((a[rg]*na + b[rg]*nb)/(na+nb), 5) for rg in regions_all}
     loc[p+'_cis'] = {rg: round(a[rg],5) for rg in regions_all}
     loc[p+'_d40'] = {rg: round(b[rg],5) for rg in regions_all}
 res['loc'] = loc
 # Adelante Andalucía: cuota entre votantes de Andalucía (media CIS/40dB)
 _n40 = int(d4_reg['01'][2]) + int(d4n_reg['01'][2]) + int(d4t_reg['01'][2])
-res['adelante_and'] = {'cis': float(cis_reg['01'][0]['ADELANTE']), 'd40': float((d4_reg['01'][0]['ADELANTE']*d4_reg['01'][2] + d4n_reg['01'][0]['ADELANTE']*d4n_reg['01'][2] + d4t_reg['01'][0]['ADELANTE']*d4t_reg['01'][2])/_n40), 'n_cis': int(cis_reg['01'][2]), 'n_d40': _n40}
+res['adelante_and'] = {'cis': float((cis_reg['01'][0]['ADELANTE']*cis_reg['01'][2] + cis11_reg['01'][0]['ADELANTE']*cis11_reg['01'][2])/(cis_reg['01'][2] + cis11_reg['01'][2])), 'd40': float((d4_reg['01'][0]['ADELANTE']*d4_reg['01'][2] + d4n_reg['01'][0]['ADELANTE']*d4n_reg['01'][2] + d4t_reg['01'][0]['ADELANTE']*d4t_reg['01'][2])/_n40), 'n_cis': int(cis_reg['01'][2] + cis11_reg['01'][2]), 'n_d40': _n40}
 print('LOC Podemos', {k:v for k,v in loc['PODEMOS'].items() if v>0.04}); print('LOC Sumar', {k:v for k,v in loc['SUMAR'].items() if v>0.04}); print('Adelante en Andalucía', res['adelante_and'])
 
 cis9_reg = {}
@@ -406,6 +448,7 @@ for rg in regions:
         e1, se1 = lnf(s_c, ne, b_reg_f.loc[rg], b_nat, B, p)
         ests = [(e1, se1)]
         if rg in cis9_reg and cis9_reg[rg][1] >= 20: ests.append(lnf(cis9_reg[rg][0], cis9_reg[rg][1], b_reg_f.loc[rg], b_nat, B9, p))
+        if rg in cis11_reg and cis11_reg[rg][1] >= 20: ests.append(lnf(cis11_reg[rg][0], cis11_reg[rg][1], b_reg_f.loc[rg], b_nat, B11, p))
         if rg in d4_reg and d4_reg[rg][1] >= 20: ests.append(lnf(d4_reg[rg][0], d4_reg[rg][1], b_reg_f.loc[rg], b_nat, B4, p))
         if rg in d4n_reg and d4n_reg[rg][1] >= 20: ests.append(lnf(d4n_reg[rg][0], d4n_reg[rg][1], b_reg_f.loc[rg], b_nat, B4n, p))
         if rg in d4t_reg and d4t_reg[rg][1] >= 20: ests.append(lnf(d4t_reg[rg][0], d4t_reg[rg][1], b_reg_f.loc[rg], b_nat, B4t, p))

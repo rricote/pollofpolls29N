@@ -264,6 +264,7 @@ function lr(vals, total) { const fl = vals.map(Math.floor); let r = total - fl.r
 function seedPolls() {
   const ps = D.polls.map(p => ({ ...p, v: { ...p.v } }));
   ps.push({ id: 'cis3577', name: 'CIS 3577 (microdatos)', date: '2026-09-03', n: D.micro.cis9.n, v: {}, q: 1, include: true, src: 'micro', mk: 'cis9', note: 'Barómetro de septiembre (campo 1-4 sep); reponderado por recuerdo de voto 2023' });
+  ps.push({ id: 'cis3584', name: 'CIS 3584 (microdatos, macroencuesta preelectoral)', date: '2026-10-30', n: D.micro.cis11.n, v: {}, q: 1, include: true, src: 'micro', mk: 'cis11', note: 'Macroencuesta preelectoral del CIS (campo 7-30 oct, 45.074 entrevistas; sin Ceuta y Melilla); reponderada por recuerdo de voto 2023. Sustituye a la reestimación de Ateneo del Dato' });
   ps.push({ id: 'cis3582', name: 'CIS 3582 (microdatos)', date: '2026-10-06', n: D.micro.cis.n, v: {}, q: 1, include: true, src: 'micro', mk: 'cis', note: 'Barómetro de octubre (campo 1-6 oct); reponderado por recuerdo de voto 2023' });
   ps.push({ id: 'd40flash', name: '40dB flash (microdatos)', date: '2026-10-08', n: D.micro.d40.n, v: {}, q: 1, include: true, src: 'micro', mk: 'd40', note: 'Flash 7-8 oct; sin Ceuta y Melilla' });
   ps.push({ id: 'd40nov', name: '40dB preelectoral I (microdatos)', date: '2026-11-04', n: D.micro.d40n.n, v: {}, q: 1, include: true, src: 'micro', mk: 'd40n', note: 'Preelectoral I, campo 2-4 nov (CAWI, 2.000 entrevistas); se suma a la flash de octubre, no la sustituye; sin Ceuta y Melilla' });
@@ -271,7 +272,7 @@ function seedPolls() {
   ps.push({ id: 'ceo1169', name: 'CEO 1169 (solo Cataluña)', date: '2026-09-16', n: D.micro.ceo.n, v: {}, q: 1, include: false, src: 'micro', mk: 'ceo', regional: true, note: 'No entra en la media nacional: refuerza los factores de Cataluña' });
   return ps;
 }
-const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.40, sdProv: 0.05, lam: 0.35, house: 1, group: true, blockShift: 0, ref: '2026-11-22', target: '2026-11-29', trend: (window.POP || {}).mode === 'trend' };
+const DEFAULTS = { half: 14, variant: 'B', regInt: 1, unity: false, bonus: D.micro.d40.bonus, nsim: 1000, sdSys: 0.40, sdProv: 0.05, lam: 0.35, house: 1, group: true, blockShift: 0, ref: '2026-11-23', target: '2026-11-29', trend: (window.POP || {}).mode === 'trend' };
 
 /* ---- voto necesario para escaño (D'Hondt, resto de partidos escalados en proporción) ---- */
 const _out = new Int16Array(NPAR);
