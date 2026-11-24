@@ -167,7 +167,7 @@ const SDP = (() => { const a = new Array(NK).fill(0.05); [['PP', .06], ['PSOE', 
 function baseMatrix(o, Tsep, T) {
   if (o.unity && Tsep) {      // lista unitaria: se parte del reparto provincial por separado (ya calibrado) y solo se funden FA y Podemos donde Podemos concurre aparte, con el bonus allí
     const so = baseMatrix({ ...o, unity: false }, null, T); rake(so.S0, Tsep, 16);
-    D.prov.forEach((p, j) => { if (!D.cfg.regPodemosCoal.includes(p.ccaa)) { so.S0[j][KI.SUMAR] = (so.S0[j][KI.SUMAR] + so.S0[j][KI.PODEMOS]) * o.bonus; so.S0[j][KI.PODEMOS] = 0 } });
+    D.prov.forEach((p, j) => { if (!D.cfg.regPodemosCoal.includes(p.ccaa) && !((D.cfg.noRun || {})[p.id] || []).includes('SUMAR')) { so.S0[j][KI.SUMAR] = (so.S0[j][KI.SUMAR] + so.S0[j][KI.PODEMOS]) * o.bonus; so.S0[j][KI.PODEMOS] = 0 } });
     return so;
   }
   const S0 = [], SD = [];
@@ -183,6 +183,7 @@ function baseMatrix(o, Tsep, T) {
     }
     if (p.ccaa === '01') row[KI.ADELANTE] = C.andAdelante * (p.adelR || 1);
     for (let k = 0; k < NPAR; k++) { if (row[k] <= 0) continue; const f = facFor(p.ccaa, k, o); row[k] *= f.m; sd[k] = f.sd * o.regInt }
+    for (const k of (((D.cfg.noRun || {})[p.id]) || [])) row[KI[k]] = 0;   // listas que no se presentan en esa circunscripción
     S0.push(row); SD.push(sd);
   });
   return { S0, SD };
